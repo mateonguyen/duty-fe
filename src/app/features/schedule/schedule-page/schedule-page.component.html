@@ -1,0 +1,113 @@
+<!-- src/app/features/schedule/schedule-page/schedule-page.component.html -->
+<p-confirmDialog></p-confirmDialog>
+
+<div class="h-[calc(100vh-48px)] flex flex-col">
+  <!-- Page title -->
+  <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+    <!-- LEFT SIDE: title + scope-picker -->
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-semibold uppercase">Bảng phân công trực</h1>
+      <app-scope-picker
+        class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
+        [scopes]="scopes()"
+        [selected]="activeScope()"
+        (selectedChange)="onScopeChange($event)"
+      ></app-scope-picker>
+    </div>
+    <div class="flex gap-2">
+      <button
+        pButton
+        label="Hủy"
+        severity="danger"
+        (click)="onCancel()"
+      ></button>
+      <button
+        pButton
+        label="Lưu"
+        icon="pi pi-save"
+        severity="primary"
+        (click)="onSave()"
+        [disabled]="!activeScope()"
+        appPermissionTooltip="roster.create"
+      ></button>
+    </div>
+  </div>
+  <!-- Header row: app header -->
+  <app-header-bar></app-header-bar>
+
+  <!-- Body: only render when scope is selected -->
+  <div class="flex flex-1 min-h-0" *ngIf="activeScope(); else noScope">
+    <!-- Left: Staff tree with scroll container -->
+    <div class="w-[280px] border-r flex flex-col max-h-[calc(100vh-160px)]">
+      <ng-container *ngIf="loadingTree(); else treeContent">
+        <div class="p-3 text-sm text-slate-500">Đang tải danh sách cán bộ…</div>
+      </ng-container>
+      <ng-template #treeContent>
+        <ng-container
+          *ngIf="
+            orgTreeWithStaff() && orgTreeWithStaff()!.length > 0;
+            else noStaff
+          "
+        >
+          <div class="flex-1 overflow-y-auto">
+            <app-staff-tree
+              [orgTree]="orgTreeWithStaff()"
+              [selectedUser]="selectedUser()"
+              (selectUser)="onPickUser($event)"
+            />
+          </div>
+        </ng-container>
+        <ng-template #noStaff>
+          <div class="p-3 text-sm text-slate-500">
+            Không có nhân viên trong phạm vi này
+          </div>
+        </ng-template>
+      </ng-template>
+    </div>
+
+    <!-- Middle: Calendar -->
+    <div class="flex-1 min-w-0 flex flex-col">
+      <app-shift-tabs
+        class="border-b"
+        [shifts]="shifts"
+        [selectedShiftId]="selectedShiftId()"
+        [visibleShiftIds]="visibleShiftIds()"
+        [locations]="locations"
+        [locationId]="roster().locationId ?? null"
+        (shiftChange)="onSelectShift($event)"
+        (locationCreated)="onLocationCreated($event)"
+        (locationChange)="onMetaChange({ locationId: $event })"
+        (visibleShiftsChange)="onVisibleShiftsChange($event)"
+      />
+      <div class="flex-1 overflow-auto">
+        <app-month-board
+          [from]="days().from"
+          [to]="days().to"
+          [selectedShiftId]="selectedShiftId()"
+          [assignments]="assignments()"
+          (quickAdd)="onQuickAdd($event)"
+          (remove)="onRemoveAssignment($event)"
+          (staffDropped)="onStaffDropped($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Right: Inspector -->
+    <!-- <app-inspector-panel
+      class="w-[320px] border-l"
+      [selectedUser]="selectedUser()"
+      [selectedShiftId]="selectedShiftId()"
+      [assignments]="assignments()"
+    /> -->
+  </div>
+
+  <!-- Message when no scope selected -->
+  <ng-template #noScope>
+    <div class="flex-1 flex items-center justify-center bg-slate-50">
+      <div class="text-center text-slate-500">
+        <i class="pi pi-map-marker text-4xl mb-3"></i>
+        <p class="text-lg">Vui lòng chọn đơn vị để bắt đầu tạo lịch trực</p>
+      </div>
+    </div>
+  </ng-template>
+</div>

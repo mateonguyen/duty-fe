@@ -1,0 +1,107 @@
+<div class="flex flex-col h-full">
+  <div class="p-2 border-b flex-shrink-0">
+    <div class="relative group">
+      <i
+        class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+      ></i>
+      <input
+        pInputText
+        class="w-full"
+        [style.paddingLeft.px]="30"
+        [style.paddingRight.px]="isFocus || query() ? 32 : null"
+        #q
+        (focus)="isFocus = true"
+        (blur)="isFocus = false"
+        placeholder="Tìm cán bộ..."
+        [ngModel]="query()"
+        (ngModelChange)="query.set($event)"
+      />
+      <i
+        *ngIf="isFocus || query()"
+        class="pi pi-times absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-red-500"
+        (click)="query.set(''); q.blur(); isFocus = false"
+      ></i>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto">
+    <ng-container *ngIf="filteredTree">
+      <ng-template #recursiveTree let-nodes>
+        <div *ngFor="let node of nodes" class="border-b last:border-b-0">
+          <!-- Org unit header -->
+          <div
+            class="sticky top-0 bg-slate-100 px-3 py-2 font-semibold text-sm text-slate-700 cursor-pointer hover:bg-slate-200 flex items-center gap-2 z-10"
+            (click)="toggleGroupExpanded(node.code)"
+          >
+            <i
+              class="pi text-xs"
+              [ngClass]="
+                expandedGroups()[node.code] !== false
+                  ? 'pi-chevron-down'
+                  : 'pi-chevron-right'
+              "
+            ></i>
+            <span>{{ node.name }}</span>
+            <span class="text-slate-500 text-xs ml-auto"
+              >({{ node.staff?.length ?? 0 }})</span
+            >
+          </div>
+          <!-- Staff list for this org unit -->
+          <div
+            *ngIf="expandedGroups()[node.code] !== false"
+            class="p-2 space-y-2"
+          >
+            <div
+              *ngFor="let u of node.staff"
+              class="flex items-center gap-2 px-2 py-1 rounded border cursor-pointer"
+              [ngClass]="{
+                'ring-2 ring-emerald-500': selectedUser?.id === u.id,
+                'bg-emerald-50 border-emerald-300 hover:bg-emerald-100':
+                  u.isLeader,
+                'bg-white hover:bg-slate-50': !u.isLeader
+              }"
+              (click)="pick(u)"
+              pTooltip="{{ u.positionName || '' }}"
+              tooltipPosition="right"
+            >
+              <i
+                class="pi pi-user text-base"
+                [ngClass]="u.isLeader ? 'text-emerald-700' : 'text-slate-400'"
+              ></i>
+              <div class="truncate flex-1">
+                <div
+                  class="font-semibold"
+                  [ngClass]="u.isLeader ? 'text-emerald-900' : 'text-slate-800'"
+                >
+                  {{ u.displayName }}
+                  <i
+                    *ngIf="u.isLeader"
+                    class="pi pi-star-fill text-yellow-500 text-xs ml-1"
+                  ></i>
+                </div>
+                <div
+                  class="text-xs"
+                  [ngClass]="u.isLeader ? 'text-emerald-700' : 'text-slate-500'"
+                >
+                  {{ u.positionName }}
+                </div>
+              </div>
+            </div>
+            <!-- Recursively render children org units -->
+            <div *ngIf="node.children && node.children.length > 0" class="ml-4">
+              <ng-container
+                *ngTemplateOutlet="
+                  recursiveTree;
+                  context: { $implicit: node.children }
+                "
+              ></ng-container>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+      <ng-container
+        *ngTemplateOutlet="recursiveTree; context: { $implicit: filteredTree }"
+      ></ng-container>
+    </ng-container>
+  </div>
+</div>

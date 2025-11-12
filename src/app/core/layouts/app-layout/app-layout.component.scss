@@ -1,0 +1,401 @@
+/* ---- Menubar tweaks ---- */
+:host ::ng-deep .p-menubar {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* Home pill active to match menubar active style */
+:host header a.app-home-active {
+  background: #fff;
+  color: #1f2937 !important; /* slate-800 */
+}
+:host header a.app-home-active .pi {
+  color: #1f2937 !important;
+}
+
+/* khoảng cách giữa các mục top-level */
+:host ::ng-deep .p-menubar-root-list {
+  gap: 8px; /* Y/c #3 */
+}
+
+/* thân item */
+:host ::ng-deep .p-menubar-root-list > .p-menuitem > .p-menubar-item-content {
+  color: #fff;
+  padding: 6px 12px; /* Y/c #3: nhìn cân hơn */
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* Y/c #4: icon–text */
+}
+
+/* hover nền mờ như hình thứ 2 – Y/c #2 */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item
+  > .p-menubar-item-content:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* trạng thái ACTIVE: giống "nút trắng" – Y/c #1 */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  > .p-menubar-item-content {
+  background: #fff;
+  color: #1f2937; /* slate-800 */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
+}
+
+/* icon trong trạng thái active */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  .p-menubar-item-icon {
+  color: #1f2937;
+}
+
+/* Focus visible styles for keyboard navigation */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item
+  > .p-menubar-item-content:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* chỉnh riêng khoảng cách icon–text (nếu theme cũ) – Y/c #4 */
+:host ::ng-deep .p-menubar-item-icon {
+  margin-right: 0 !important; /* vì mình dùng gap */
+  font-size: 0.95rem;
+}
+
+/* Root menu text/icon = trắng (NHƯNG không áp cho item đang active/mở submenu) */
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menuitem-link,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menuitem-icon {
+  color: #fff;
+}
+
+/* Hover nền mờ vẫn giữ chữ trắng (trừ khi item đang active/mở submenu) */
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+/* Trạng thái ACTIVE (nút trắng) -> màu đậm */
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  > .p-menubar-item-content,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  > .p-menubar-item-content
+  .p-menuitem-link,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  > .p-menubar-item-content
+  .p-menuitem-icon,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.app-menu-active
+  > .p-menubar-item-content
+  .p-menuitem-text {
+  background: #fff;
+  color: #1f2937 !important; /* slate-800 */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
+}
+
+/* Khi submenu đang mở, PrimeNG thêm .p-menubar-item-active -> đảm bảo chữ không trắng trên nền trắng */
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.p-menubar-item-active
+  > .p-menubar-item-content {
+  background: #fff;
+  color: #1f2937 !important; /* slate-800 */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.p-menubar-item-active
+  .p-menuitem-icon,
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item.p-menubar-item-active
+  .p-menuitem-text {
+  color: #1f2937 !important;
+}
+
+/* Giãn item & icon–text (nếu chưa có) */
+:host ::ng-deep .p-menubar .p-menubar-root-list {
+  gap: 10px;
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-menubar-root-list
+  > .p-menubar-item
+  > .p-menubar-item-content {
+  // padding: 6px 14px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+:host ::ng-deep .p-menubar .p-menubar-item-icon {
+  margin-right: 0 !important;
+}
+
+/* ---- Submenu styles (đảm bảo chữ không bị trắng) ---- */
+:host ::ng-deep .p-menubar .p-submenu-list {
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 4px;
+}
+:host ::ng-deep .p-menubar .p-submenu-list .p-menuitem .p-menuitem-content {
+  color: #1f2937; /* slate-800 */
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-submenu-list
+  .p-menuitem
+  .p-menuitem-content
+  .p-menuitem-icon {
+  color: #6b7280; /* slate-500 */
+  transition: all 0.2s ease;
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-submenu-list
+  .p-menuitem
+  .p-menuitem-content:hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  transform: translateX(4px);
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-submenu-list
+  .p-menuitem
+  .p-menuitem-content:hover
+  .p-menuitem-icon {
+  color: #ffffff;
+}
+:host
+  ::ng-deep
+  .p-menubar
+  .p-submenu-list
+  .p-menuitem
+  .p-menuitem-content:active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateX(2px) scale(0.98);
+}
+
+/* Nhóm trong submenu (label không click) */
+:host ::ng-deep .menu-group {
+  pointer-events: none;
+  opacity: 0.8;
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  color: #6b7280;
+}
+
+/* Giữ icon root menu màu trắng khi hover (trừ khi active/mở submenu) */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content:hover
+  .p-menuitem-icon,
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content:hover
+  .p-menubar-item-icon {
+  color: #ffffff !important;
+}
+
+/* Một số theme áp màu khi hover trên thẻ <a> thay vì content -> xử lý cả 2 */
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menubar-item-link:hover
+  .p-menuitem-icon,
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menubar-item-link:hover
+  .p-menubar-item-icon,
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menuitem-link:hover
+  .p-menuitem-icon,
+:host
+  ::ng-deep
+  .p-menubar-root-list
+  > .p-menubar-item:not(.app-menu-active):not(.p-menubar-item-active)
+  > .p-menubar-item-content
+  .p-menuitem-link:hover
+  .p-menubar-item-icon {
+  color: #ffffff !important;
+}
+
+/* Search box styling */
+:host ::ng-deep .search-wrapper {
+  position: relative;
+}
+
+:host ::ng-deep .search-wrapper input {
+  background: white;
+  color: #1f2937;
+  padding-left: 2.5rem;
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  }
+}
+
+:host ::ng-deep .search-wrapper .pi-search {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  z-index: 1;
+}
+
+/* User dropdown menu (p-menu popup) styling */
+:host ::ng-deep .p-menu {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+:host ::ng-deep .p-menu .p-menuitem {
+  .p-menuitem-content {
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    color: #1f2937;
+
+    .p-menuitem-icon {
+      color: #6b7280;
+      transition: all 0.2s ease;
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      transform: translateX(4px);
+
+      .p-menuitem-icon,
+      .p-menuitem-link .p-menuitem-icon {
+        color: #ffffff !important;
+      }
+    }
+
+    &:active {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transform: translateX(2px) scale(0.98);
+    }
+  }
+}
+
+:host ::ng-deep .p-menu .p-menuitem-link {
+  color: inherit;
+
+  &:hover {
+    background: transparent !important;
+  }
+}
+
+/* User menu button styling */
+.user-menu-btn {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: white;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+
+    ::ng-deep .p-avatar {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(0.97);
+  }
+
+  ::ng-deep .p-avatar {
+    transition: all 0.3s ease;
+  }
+}

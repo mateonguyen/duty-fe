@@ -1,0 +1,113 @@
+<div class="h-[calc(100vh-48px)] grid grid-cols-[280px_1fr]">
+  <!-- SIDEBAR -->
+  <aside class="border-r bg-white">
+    <!-- tiêu đề + nút menu -->
+    <div class="h-12 px-4 border-b flex items-center justify-between">
+      <div class="text-base font-semibold">Quản trị</div>
+      <button
+        pButton
+        type="button"
+        icon="pi pi-ellipsis-v"
+        class="p-button-text p-button-rounded"
+      ></button>
+    </div>
+
+    <div class="px-3 py-2 space-y-5 text-[15px]">
+      <!-- NHÓM: DANH MỤC -->
+      <section>
+        <button
+          class="w-full flex items-center justify-between px-3 py-2 text-xs tracking-wider text-slate-500"
+          (click)="openCatalog.set(!openCatalog())"
+        >
+          <span>DANH MỤC</span>
+          <i
+            class="pi"
+            [ngClass]="{
+              'pi-chevron-up': openCatalog(),
+              'pi-chevron-down': !openCatalog()
+            }"
+          ></i>
+        </button>
+
+        <div *ngIf="openCatalog()" class="mt-1">
+          <a
+            routerLink="/admin/catalog/duty-locations"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-map-marker"></i><span>Địa điểm trực</span>
+          </a>
+          <a
+            routerLink="/admin/catalog/shifts"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-clock"></i><span>Ca trực</span>
+          </a>
+          <a
+            routerLink="/admin/catalog/duty-roles"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-verified"></i><span>Vai trò trực</span>
+          </a>
+        </div>
+      </section>
+
+      <hr />
+
+      <!-- NHÓM: QUẢN TRỊ -->
+      <section>
+        <button
+          class="w-full flex items-center justify-between px-3 py-2 text-xs tracking-wider text-slate-500"
+          (click)="openAccess.set(!openAccess())"
+        >
+          <span>QUẢN TRỊ</span>
+          <i
+            class="pi"
+            [ngClass]="{
+              'pi-chevron-up': openAccess(),
+              'pi-chevron-down': !openAccess()
+            }"
+          ></i>
+        </button>
+
+        <div *ngIf="openAccess()" class="mt-1">
+          <a
+            routerLink="/admin/access/roles"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-key"></i><span>Vai trò</span>
+          </a>
+          <a
+            routerLink="/admin/access/user-roles"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-user-edit"></i><span>Gán vai trò</span>
+          </a>
+          <a
+            *hasPermission="'system.config'"
+            routerLink="/admin/system-config"
+            routerLinkActive="bg-slate-100 font-medium"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
+          >
+            <i class="pi pi-cog"></i><span>Cấu hình hệ thống</span>
+          </a>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="p-4 overflow-auto bg-gray-50">
+    <router-outlet (activate)="onActivate($event)"></router-outlet>
+  </main>
+</div>

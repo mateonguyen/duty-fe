@@ -1,0 +1,52 @@
+<div class="px-2 py-2 border-b bg-white">
+  <!-- Chỉ còn phần chọn phòng ban nếu có nhiều scope -->
+  <div *ngIf="orgUnits.length > 0" class="flex items-center gap-4 mb-3">
+    <label class="text-sm text-slate-700">Đơn vị:</label>
+    <p-dropdown
+      [(ngModel)]="selectedUnit"
+      [options]="orgUnits"
+      optionLabel="name"
+      placeholder="Chọn đơn vị"
+      (ngModelChange)="onUnitChange($event)"
+      [style]="{ width: '200px' }"
+    />
+  </div>
+
+  <!-- Row 2: Date range + Tên lịch -->
+  <div class="flex items-center gap-5">
+    <p-datepicker
+      [(ngModel)]="range"
+      selectionMode="range"
+      [showIcon]="true"
+      [iconDisplay]="'input'"
+      dateFormat="dd/mm/yy"
+      [style]="{ width: '265px' }"
+      (ngModelChange)="onRangeChange($event)"
+      (onShow)="rangeTouched = true"
+      [inputStyleClass]="rangeTouched && invalidRange ? 'p-invalid' : ''"
+      pTooltip="Chọn đầy đủ từ ngày - đến ngày"
+      [tooltipDisabled]="!(rangeTouched && invalidRange)"
+      tooltipPosition="bottom"
+      tooltipStyleClass="error-tooltip"
+      [tooltipOptions]="{ showDelay: 0, hideDelay: 300, life: 999999 }"
+      appendTo="body"
+    />
+    <input
+      pInputText
+      class="flex-1"
+      placeholder="Tên kỳ lịch (vd: Lịch trực Phòng 1 - 11/2025)"
+      [(ngModel)]="title"
+      maxlength="200"
+      required
+      (focus)="titleTouched = true"
+      (blur)="onTitleBlur()"
+      [class.p-invalid]="titleTouched && invalidTitle"
+      pTooltip="Tên kỳ lịch bắt buộc, tối đa 200 ký tự"
+      [tooltipDisabled]="!(titleTouched && invalidTitle)"
+      tooltipPosition="bottom"
+      tooltipStyleClass="error-tooltip"
+      [tooltipOptions]="{ showDelay: 0, hideDelay: 300, life: 999999 }"
+      appendTo="body"
+    />
+  </div>
+</div>

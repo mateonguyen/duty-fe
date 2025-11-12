@@ -1,0 +1,93 @@
+<header
+  class="bg-green-800 text-white sticky top-0 z-50 shadow-md"
+  *ngIf="auth.isAuthenticated()"
+>
+  <div class="max-w-screen mx-auto flex items-center gap-3 px-4 h-12">
+    <!-- Logo / Home -->
+    <a
+      routerLink="/"
+      class="flex items-center gap-2 font-medium px-3 py-1.5 rounded-md hover:bg-white/20 transition-all"
+      routerLinkActive="app-home-active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      <i class="pi pi-home"></i>
+      <span>Trang chủ</span>
+    </a>
+
+    <!-- Menus (ẩn nếu chưa đăng nhập) -->
+    <nav class="flex items-center gap-1 ml-3">
+      <p-menubar
+        [model]="menuItems()"
+        class="!bg-transparent !border-0 !p-0 text-white"
+      ></p-menubar>
+    </nav>
+
+    <!-- Spacer -->
+    <div class="flex-1"></div>
+
+    <!-- Search mini on header -->
+    <span class="p-input-icon-left hidden md:inline-flex search-wrapper">
+      <i class="pi pi-search"></i>
+      <input
+        pInputText
+        type="text"
+        placeholder="Tìm kiếm"
+        class="h-8 text-sm rounded-md w-64"
+      />
+    </span>
+
+    <!-- Icons -->
+    <div
+      *ngIf="auth.isAuthenticated()"
+      class="text-sm font-medium mr-4 flex items-center gap-1"
+      title="Scope đang chọn"
+    >
+      <i class="pi pi-map-marker"></i>
+      <span>{{ activeScopeName() || "No scope" }}</span>
+    </div>
+    <button
+      pButton
+      type="button"
+      icon="pi pi-bell"
+      class="p-button-text p-button-rounded text-white"
+      pTooltip="Thông báo"
+    ></button>
+
+    <!-- User menu -->
+    <p-menu
+      #userMenu
+      [popup]="true"
+      [model]="userItems"
+      (onShow)="isUserMenuOpen.set(true)"
+      (onHide)="isUserMenuOpen.set(false)"
+    ></p-menu>
+    <button
+      *ngIf="auth.isAuthenticated()"
+      type="button"
+      class="flex items-center gap-2 user-menu-btn px-3 py-1.5 rounded-lg transition-all"
+      (click)="userMenu.toggle($event)"
+    >
+      <p-avatar label="A" shape="circle" styleClass="bg-white/10"></p-avatar>
+      <span class="hidden md:inline">{{
+        auth.displayName() || auth.username() || "Admin H05"
+      }}</span>
+      <i
+        class="pi text-sm transition-transform duration-300"
+        [ngClass]="
+          (chevronDownWhenOpen ? isUserMenuOpen() : !isUserMenuOpen())
+            ? 'pi-chevron-down'
+            : 'pi-chevron-up'
+        "
+      ></i>
+    </button>
+  </div>
+</header>
+
+<!-- Content wrapper -->
+<div class="max-w-screen mx-auto">
+  <!-- Thanh tiêu đề trang + toolbar -->
+  <!-- <app-page-toolbar></app-page-toolbar> -->
+
+  <!-- Nội dung page -->
+  <router-outlet></router-outlet>
+</div>

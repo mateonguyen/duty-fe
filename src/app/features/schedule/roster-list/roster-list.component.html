@@ -1,0 +1,190 @@
+<div class="p-4">
+  <p-toast></p-toast>
+  <p-confirmDialog></p-confirmDialog>
+
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+      <i class="pi pi-calendar text-blue-600"></i>
+      Danh sách kỳ lịch trực
+    </h3>
+    <a
+      pButton
+      label="Tạo lịch"
+      icon="pi pi-plus"
+      routerLink="/schedule/rosters/new"
+    ></a>
+  </div>
+
+  <p-table
+    [value]="filteredRosters"
+    [loading]="loading()"
+    dataKey="id"
+    [paginator]="true"
+    [rows]="10"
+    [rowsPerPageOptions]="[10, 25, 50]"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
+    [globalFilterFields]="['name', 'scopeUnitName', 'defaultLocationName']"
+    styleClass="catalog-table"
+    [paginatorDropdownAppendTo]="'body'"
+    #dt
+  >
+    <ng-template pTemplate="caption">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <p-dropdown
+            [(ngModel)]="selectedYear"
+            [options]="yearOptions"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="onFilterChange()"
+            placeholder="Chọn năm"
+            [style]="{ width: '140px' }"
+          ></p-dropdown>
+          <p-dropdown
+            [(ngModel)]="selectedMonth"
+            [options]="monthOptions"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="onFilterChange()"
+            placeholder="Chọn tháng"
+            [style]="{ width: '140px' }"
+          ></p-dropdown>
+          <p-dropdown
+            [(ngModel)]="selectedStatus"
+            [options]="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Chọn trạng thái"
+            [showClear]="false"
+            [style]="{ width: '160px' }"
+          ></p-dropdown>
+          <button
+            pButton
+            label="Tải lại"
+            icon="pi pi-refresh"
+            (click)="loadRosters()"
+            [loading]="loading()"
+            severity="secondary"
+            class="p-button-sm"
+          ></button>
+        </div>
+        <span class="p-input-icon-left" style="width: 320px">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            (input)="onSearch($any($event.target).value)"
+            placeholder="Tìm kiếm..."
+            style="width: 100%; padding-left: 2.5rem"
+            #searchInput
+          />
+        </span>
+      </div>
+    </ng-template>
+
+    <ng-template pTemplate="header">
+      <tr>
+        <th style="width: 70px" class="text-center font-bold">STT</th>
+        <th pSortableColumn="scopeUnitName" class="font-bold">
+          Đơn vị <p-sortIcon field="scopeUnitName" />
+        </th>
+        <th pSortableColumn="name" class="font-bold">
+          Tên kỳ lịch <p-sortIcon field="name" />
+        </th>
+        <th class="font-bold">Địa điểm</th>
+        <th pSortableColumn="periodStart" class="font-bold">
+          Từ ngày <p-sortIcon field="periodStart" />
+        </th>
+        <th pSortableColumn="periodEnd" class="font-bold">
+          Đến ngày <p-sortIcon field="periodEnd" />
+        </th>
+        <th pSortableColumn="status" class="text-center font-bold">
+          Trạng thái <p-sortIcon field="status" />
+        </th>
+        <th class="text-center font-bold" style="width: 180px"></th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
+      <tr>
+        <td class="text-center text-slate-500">
+          {{ dt.first + rowIndex + 1 }}
+        </td>
+        <td class="text-slate-700">{{ r.scopeUnitName }}</td>
+        <td>
+          <a
+            routerLink="/schedule/rosters/{{ r.id }}/edit"
+            class="text-blue-600 hover:underline font-medium"
+            >{{ r.name }}</a
+          >
+        </td>
+        <td class="text-slate-600">
+          <span *ngIf="r.defaultLocationName">{{ r.defaultLocationName }}</span>
+          <span *ngIf="!r.defaultLocationName" class="text-slate-400 italic"
+            >Chưa chọn</span
+          >
+        </td>
+        <td class="text-slate-700">
+          {{ r.periodStart | date : "dd/MM/yyyy" }}
+        </td>
+        <td class="text-slate-700">{{ r.periodEnd | date : "dd/MM/yyyy" }}</td>
+        <td class="text-center">
+          <p-tag
+            [value]="getStatusLabel(r.status)"
+            [severity]="getSeverity(r.status)"
+          ></p-tag>
+        </td>
+        <td class="text-center">
+          <button
+            pButton
+            icon="pi pi-pencil"
+            class="p-button-text p-button-sm text-blue-600"
+            routerLink="/schedule/rosters/{{ r.id }}/edit"
+            pTooltip="Sửa"
+          ></button>
+          <button
+            pButton
+            icon="pi pi-eye"
+            class="p-button-text p-button-sm text-slate-600"
+            routerLink="/schedule/view/{{ r.id }}"
+            pTooltip="Xem"
+          ></button>
+          <button
+            *ngIf="r.status === 'DRAFT'"
+            pButton
+            icon="pi pi-upload"
+            class="p-button-text p-button-sm text-green-600"
+            (click)="publish(r)"
+            pTooltip="Công bố"
+          ></button>
+          <button
+            *ngIf="r.status === 'PUBLISHED'"
+            pButton
+            icon="pi pi-undo"
+            class="p-button-text p-button-sm text-orange-600"
+            (click)="unpublish(r)"
+            pTooltip="Hủy công bố"
+          ></button>
+          <button
+            *ngIf="r.status !== 'LOCKED'"
+            pButton
+            icon="pi pi-lock"
+            class="p-button-text p-button-sm text-purple-600"
+            (click)="lock(r)"
+            pTooltip="Khóa"
+          ></button>
+          <button
+            *ngIf="r.status === 'DRAFT'"
+            pButton
+            class="p-button-text p-button-sm"
+            (click)="delete(r)"
+            pTooltip="Xóa"
+          >
+            <i class="pi pi-trash text-red-600"></i>
+          </button>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

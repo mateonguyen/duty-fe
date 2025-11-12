@@ -1,0 +1,353 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="flex items-center justify-between mb-3">
+  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+    <i class="pi pi-key text-blue-600"></i>
+    Vai trò
+  </h3>
+  <button
+    pButton
+    label="Thêm"
+    icon="pi pi-plus"
+    (click)="openCreateDialog()"
+  ></button>
+</div>
+
+<p-table
+  [value]="roles"
+  [loading]="loading"
+  [paginator]="true"
+  [rows]="10"
+  [rowsPerPageOptions]="[10, 25, 50]"
+  [showCurrentPageReport]="true"
+  currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
+  [globalFilterFields]="['code', 'name', 'description']"
+  styleClass="catalog-table"
+  [paginatorDropdownAppendTo]="'body'"
+  [dataKey]="'code'"
+  [(selection)]="selected"
+  #dt
+>
+  <ng-template pTemplate="caption">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <button
+          pButton
+          label="Xóa"
+          icon="pi pi-trash"
+          severity="danger"
+          class="p-button-sm"
+          [disabled]="!selected.length"
+          (click)="deleteManyRoles()"
+        ></button>
+        <button
+          pButton
+          label="Đổi trạng thái"
+          icon="pi pi-refresh"
+          class="p-button-sm"
+          [disabled]="!selected.length"
+          (click)="toggleManyStatus()"
+        ></button>
+        <span class="text-sm text-slate-500 italic" *ngIf="selected.length"
+          >{{ selected.length }} mục đã chọn</span
+        >
+      </div>
+      <span class="p-input-icon-left" style="width: 320px">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          (input)="dt.filterGlobal($any($event.target).value, 'contains')"
+          placeholder="Tìm kiếm..."
+          style="width: 100%; padding-left: 2.5rem"
+        />
+      </span>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 2.5rem" class="text-center">
+        <p-tableHeaderCheckbox />
+      </th>
+      <th style="width: 70px" class="text-center font-bold">STT</th>
+      <th pSortableColumn="code" class="font-bold">
+        Mã <p-sortIcon field="code" />
+      </th>
+      <th pSortableColumn="name" class="font-bold">
+        Tên <p-sortIcon field="name" />
+      </th>
+      <th class="font-bold">Mô tả</th>
+      <th
+        pSortableColumn="isSystemRole"
+        class="text-center font-bold"
+        style="width: 120px"
+      >
+        Hệ thống <p-sortIcon field="isSystemRole" />
+      </th>
+      <th
+        pSortableColumn="active"
+        class="text-center font-bold"
+        style="width: 120px"
+      >
+        Trạng thái <p-sortIcon field="active" />
+      </th>
+      <th class="text-center font-bold" style="width: 180px"></th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
+    <tr>
+      <td class="text-center">
+        <p-tableCheckbox [value]="r" />
+      </td>
+      <td class="text-center">{{ dt.first + rowIndex + 1 }}</td>
+      <td class="font-mono text-slate-600">{{ r.code }}</td>
+      <td>{{ r.name }}</td>
+      <td class="truncate">{{ r.description }}</td>
+      <td class="text-center">
+        <span
+          *ngIf="r.isSystemRole"
+          class="inline-flex items-center gap-1 text-purple-600 text-xs font-medium bg-purple-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-lock"></i> Hệ thống
+        </span>
+        <span *ngIf="!r.isSystemRole" class="text-slate-400 text-xs">
+          Tùy chỉnh
+        </span>
+      </td>
+      <td class="text-center">
+        <span
+          *ngIf="r.active !== false"
+          class="inline-flex items-center gap-1 text-green-600 text-xs font-medium bg-green-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-check-circle"></i> Kích hoạt
+        </span>
+        <span
+          *ngIf="r.active === false"
+          class="inline-flex items-center gap-1 text-red-500 text-xs font-medium bg-red-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-times-circle"></i> Ngừng
+        </span>
+      </td>
+      <td class="text-center">
+        <button
+          pButton
+          pTooltip="Phân quyền"
+          class="p-button-text p-button-sm"
+          (click)="openPermissions(r)"
+        >
+          <i class="pi pi-sliders-h"></i>
+        </button>
+        <button
+          pButton
+          icon="pi pi-pencil"
+          class="p-button-text p-button-sm text-blue-600"
+          (click)="openEditDialog(r)"
+          pTooltip="Sửa"
+        ></button>
+        <button
+          pButton
+          class="p-button-text p-button-sm"
+          (click)="deleteRole(r)"
+          [pTooltip]="r.isSystemRole ? 'Vai trò hệ thống không thể xóa' : 'Xóa'"
+          [disabled]="r.isSystemRole"
+        >
+          <i
+            class="pi pi-trash"
+            [class.text-red-600]="!r.isSystemRole"
+            [class.text-slate-300]="r.isSystemRole"
+          ></i>
+        </button>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<!-- Permissions Dialog -->
+<p-dialog
+  [(visible)]="showPerms"
+  [modal]="true"
+  [style]="{ width: '780px', maxWidth: '96vw' }"
+  [contentStyle]="{ padding: '0' }"
+  [dismissableMask]="true"
+>
+  <ng-template pTemplate="header">
+    <div class="flex items-center justify-between w-full pr-2">
+      <div class="font-semibold">
+        <span>Phân quyền</span>
+        <span class="ml-2 text-slate-500" *ngIf="currentRole"
+          >- {{ currentRole.name }} ({{ currentRole.code }})</span
+        >
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="search-box" style="width: 220px">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            placeholder="Tìm quyền..."
+            [(ngModel)]="permFilter"
+          />
+        </span>
+        <a
+          pButton
+          type="button"
+          class="p-button-text p-button-sm"
+          [routerLink]="['/admin/access/roles', currentRole?.code]"
+          pTooltip="Mở trong trang"
+        >
+          <i class="pi pi-external-link"></i>
+        </a>
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="perm-panel">
+    <div *ngFor="let g of permGroups">
+      <div class="perm-group-header" (click)="toggleGroupOpen(g)">
+        <i
+          class="pi"
+          [ngClass]="g.open ? 'pi-chevron-down' : 'pi-chevron-right'"
+        ></i>
+        <span class="group-label">{{ g.prefix }}</span>
+        <span class="flex-1"></span>
+        <p-checkbox
+          [binary]="true"
+          [ngModel]="isGroupChecked(g)"
+          (onChange)="selectAllInGroup(g, $event.checked)"
+          pTooltip="Chọn tất cả"
+        ></p-checkbox>
+      </div>
+      <div *ngIf="g.open">
+        <label
+          class="perm-item"
+          *ngFor="let p of g.items"
+          [hidden]="
+            permFilter &&
+            !(p.code + ' ' + p.name + ' ' + (p.description || ''))
+              .toLowerCase()
+              .includes(permFilter.toLowerCase())
+          "
+        >
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="isChecked(p.code)"
+            (onChange)="togglePermission(p.code, $event.checked)"
+          ></p-checkbox>
+          <span class="code">{{ p.code }}</span>
+          <span class="name">{{ p.name }}</span>
+          <small class="desc" *ngIf="p.description">{{ p.description }}</small>
+        </label>
+      </div>
+    </div>
+    <div class="saving" *ngIf="saving">
+      <i class="pi pi-spinner pi-spin mr-2"></i>Đang lưu thay đổi...
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      type="button"
+      label="Hủy"
+      class="p-button-text"
+      (click)="cancelPermissions()"
+      [disabled]="saving"
+    ></button>
+    <button
+      pButton
+      type="button"
+      label="Lưu"
+      class="p-button-primary"
+      (click)="savePermissions()"
+      [disabled]="saving"
+    ></button>
+  </ng-template>
+</p-dialog>
+
+<!-- Create/Edit Role Dialog -->
+<p-dialog
+  [(visible)]="showEditDialog"
+  [modal]="true"
+  [style]="{ width: '500px' }"
+  [dismissableMask]="true"
+  [header]="dialogTitle"
+>
+  <div class="flex flex-col gap-3">
+    <div>
+      <label class="block text-sm font-medium mb-1"
+        >Mã vai trò <span class="text-red-500">*</span></label
+      >
+      <input
+        pInputText
+        type="text"
+        [(ngModel)]="roleForm.code"
+        placeholder="VD: MANAGER"
+        class="w-full"
+        [class.p-invalid]="submitted && !roleForm.code"
+        [disabled]="!!editCode"
+      />
+      <small class="text-slate-500"
+        >Chỉ sử dụng chữ in hoa, số và dấu gạch dưới</small
+      >
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1"
+        >Tên vai trò <span class="text-red-500">*</span></label
+      >
+      <input
+        pInputText
+        type="text"
+        [(ngModel)]="roleForm.name"
+        placeholder="VD: Quản lý"
+        class="w-full"
+        [class.p-invalid]="submitted && !roleForm.name"
+      />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Mô tả</label>
+      <textarea
+        pInputTextarea
+        [(ngModel)]="roleForm.description"
+        placeholder="Mô tả vai trò..."
+        rows="3"
+        class="w-full"
+      ></textarea>
+    </div>
+    <div class="flex items-center gap-2">
+      <p-inputSwitch [(ngModel)]="roleForm.isSystemRole"></p-inputSwitch>
+      <div>
+        <div class="font-medium">Vai trò hệ thống</div>
+        <small class="text-slate-500"
+          >Vai trò hệ thống không thể xóa và được quản lý bởi hệ thống</small
+        >
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <p-inputSwitch [(ngModel)]="roleForm.active"></p-inputSwitch>
+      <span class="font-medium">Kích hoạt</span>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      type="button"
+      label="Hủy"
+      class="p-button-text"
+      (click)="closeEditDialog()"
+      [disabled]="saving"
+    ></button>
+    <button
+      pButton
+      type="button"
+      [label]="editCode ? 'Cập nhật' : 'Tạo'"
+      [icon]="editCode ? 'pi pi-check' : 'pi pi-plus'"
+      (click)="saveRole()"
+      [disabled]="saving"
+      [loading]="saving"
+    ></button>
+  </ng-template>
+</p-dialog>

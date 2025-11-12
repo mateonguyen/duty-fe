@@ -1,1 +1,68 @@
 /* You can add global styles to this file, and also import other style files */
+@use "tailwindcss";
+
+@use "primeicons/primeicons.css";
+
+html {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+/* Shared catalog table styling */
+.catalog-table.p-datatable {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden; /* safe since paginator dropdown appends to body */
+}
+.catalog-table .p-datatable-thead > tr > th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
+  border-bottom: 2px solid #cbd5e1;
+  padding: 0.75rem 1.25rem;
+}
+.catalog-table .p-datatable-tbody > tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+.catalog-table .p-datatable-tbody > tr:hover {
+  background: #f8fafc;
+}
+.catalog-table .p-datatable-tbody > tr > td {
+  padding: 0.75rem 1.25rem;
+}
+.catalog-table .p-paginator {
+  justify-content: flex-end;
+}
+.catalog-table .p-input-icon-left {
+  position: relative;
+  display: inline-block;
+}
+.catalog-table .p-input-icon-left > i {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  color: #64748b;
+}
+.catalog-table .p-input-icon-left > input {
+  padding-left: 2.5rem;
+}
+
+/* Error tooltip styling */
+.error-tooltip {
+  .p-tooltip-text {
+    background-color: #dc2626 !important;
+    color: white !important;
+  }
+  .p-tooltip-arrow {
+    border-bottom-color: #dc2626 !important;
+  }
+}
+
+/* p-highlight class for highlighted item - soft green highlight */
+ul.p-autocomplete-list li.p-highlight {
+  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%) !important;
+  border-left: 3px solid #10b981 !important;
+  padding-left: calc(1rem - 3px) !important;
+}

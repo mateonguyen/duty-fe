@@ -1,0 +1,42 @@
+.field {
+  .p-inputtext,
+  .p-dropdown,
+  .p-inputswitch {
+    width: 100%;
+  }
+}
+
+// Custom styling for form elements to match other admin screens
+.p-inputtext,
+.p-dropdown,
+.p-inputswitch {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+  }
+}
+
+.p-dropdown {
+  .p-dropdown-label {
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+.p-inputswitch {
+  .p-inputswitch-slider {
+    background: #e5e7eb;
+
+    &:before {
+      background: #ffffff;
+    }
+  }
+
+  &.p-inputswitch-checked {
+    .p-inputswitch-slider {
+      background: #3b82f6;
+    }
+  }
+}

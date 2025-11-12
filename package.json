@@ -3,10 +3,12 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
+    "build:stats": "ng build --stats-json",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "e2e": "playwright test"
   },
   "private": true,
   "dependencies": {
@@ -17,7 +19,13 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@primeng/themes": "^19.1.4",
+    "@tailwindcss/postcss": "^4.1.16",
+    "postcss": "^8.5.6",
+    "primeicons": "^7.0.0",
+    "primeng": "^19.1.4",
     "rxjs": "~7.8.0",
+    "tailwindcss": "^4.1.16",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
@@ -32,6 +40,8 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.7.2"
+    "tailwind-scrollbar": "^4.0.2",
+    "typescript": "~5.7.2",
+    "@playwright/test": "^1.49.0"
   }
 }

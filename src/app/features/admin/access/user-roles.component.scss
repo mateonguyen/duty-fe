@@ -1,0 +1,35 @@
+.page {
+  padding: 16px;
+}
+.form-row,
+.assign-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* Ensure TreeSelect stretches to full column width */
+.unit-col ::ng-deep .p-treeselect {
+  width: 100% !important;
+  display: flex !important; /* override default inline-flex so it can expand fully */
+  flex: 1 1 auto !important;
+}
+.unit-col {
+  min-width: 0;
+}
+.unit-col ::ng-deep .p-treeselect .p-treeselect-label-container {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.unit-col ::ng-deep .p-treeselect .p-treeselect-label {
+  width: 100%;
+}

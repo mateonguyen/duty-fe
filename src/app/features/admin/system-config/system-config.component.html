@@ -1,0 +1,92 @@
+<p-toast></p-toast>
+
+<div class="flex items-center justify-between mb-6">
+  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+    <i class="pi pi-cog text-blue-600"></i>
+    Cấu hình hệ thống
+  </h3>
+  <p-button
+    label="Lưu cấu hình"
+    icon="pi pi-save"
+    [loading]="saving"
+    (click)="save()"
+    styleClass="p-button-primary"
+    *ngIf="configs().length > 0"
+  ></p-button>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-6">
+  <form class="space-y-6">
+    <div
+      *ngFor="let config of configs()"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
+    >
+      <div class="field">
+        <label
+          class="block text-sm font-medium text-gray-700 mb-2"
+          [for]="config.key"
+        >
+          {{ config.key }}
+        </label>
+        <p class="text-xs text-gray-500 mb-2" *ngIf="config.description">
+          {{ config.description }}
+        </p>
+
+        <!-- Switch input -->
+        <p-inputSwitch
+          *ngIf="getInputType(config.key) === 'switch'"
+          [ngModel]="getBooleanValue(config)"
+          [ngModelOptions]="{ standalone: true }"
+          inputId="{{ config.key }}"
+          (ngModelChange)="setBooleanValue(config, $event)"
+        ></p-inputSwitch>
+
+        <!-- Number input -->
+        <input
+          *ngIf="getInputType(config.key) === 'number'"
+          pInputText
+          [(ngModel)]="config.value"
+          [ngModelOptions]="{ standalone: true }"
+          [id]="config.key"
+          type="number"
+          class="w-full"
+          placeholder="Nhập giá trị số"
+        />
+
+        <!-- Dropdown for organization -->
+        <p-dropdown
+          *ngIf="getInputType(config.key) === 'dropdown'"
+          [options]="orgOptions"
+          [(ngModel)]="config.value"
+          [ngModelOptions]="{ standalone: true }"
+          optionLabel="displayName"
+          optionValue="code"
+          [id]="config.key"
+          [filter]="true"
+          filterBy="code,name,displayName"
+          [loading]="orgLoadingFlag"
+          placeholder="Chọn đơn vị gốc"
+          class="w-full"
+          (onFilter)="onOrgFilter($event)"
+        ></p-dropdown>
+
+        <!-- Text input -->
+        <input
+          *ngIf="getInputType(config.key) === 'text'"
+          pInputText
+          [(ngModel)]="config.value"
+          [ngModelOptions]="{ standalone: true }"
+          [id]="config.key"
+          type="text"
+          class="w-full"
+          placeholder="Nhập giá trị"
+        />
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="text-center py-8" *ngIf="loading()">
+  <i class="pi pi-spin pi-spinner text-2xl text-blue-600"></i>
+  <p class="mt-2 text-gray-600">Đang tải cấu hình...</p>
+</div>

@@ -1,0 +1,185 @@
+<p-toast></p-toast>
+<div class="flex items-center justify-between mb-3">
+  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+    <i class="pi pi-users text-blue-600"></i>
+    Vai trò trực
+  </h3>
+  <button
+    *hasPermission="'catalog.edit'"
+    pButton
+    label="Thêm"
+    icon="pi pi-plus"
+    (click)="add()"
+  ></button>
+</div>
+
+<p-table
+  [value]="rows"
+  [paginator]="true"
+  [rows]="10"
+  [rowsPerPageOptions]="[10, 25, 50]"
+  [showCurrentPageReport]="true"
+  currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
+  [globalFilterFields]="['code', 'name']"
+  styleClass="catalog-table"
+  [paginatorDropdownAppendTo]="'body'"
+  [dataKey]="'id'"
+  [(selection)]="selected"
+  #dt
+>
+  <ng-template pTemplate="caption">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <button
+          *hasPermission="'catalog.delete'"
+          pButton
+          label="Xóa"
+          icon="pi pi-trash"
+          severity="danger"
+          class="p-button-sm"
+          [disabled]="!selected.length"
+          (click)="removeMany()"
+        ></button>
+        <button
+          *hasPermission="'catalog.edit'"
+          pButton
+          label="Đổi trạng thái"
+          icon="pi pi-refresh"
+          class="p-button-sm"
+          [disabled]="!selected.length"
+          (click)="toggleMany()"
+        ></button>
+        <span class="text-sm text-slate-500 italic" *ngIf="selected.length"
+          >{{ selected.length }} mục đã chọn</span
+        >
+      </div>
+      <span class="p-input-icon-left" style="width: 320px">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          (input)="dt.filterGlobal($any($event.target).value, 'contains')"
+          placeholder="Tìm kiếm..."
+          style="width: 100%; padding-left: 2.5rem"
+        />
+      </span>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 2.5rem" class="text-center">
+        <p-tableHeaderCheckbox />
+      </th>
+      <th style="width: 70px" class="text-center font-bold">STT</th>
+      <th pSortableColumn="code" class="font-bold">
+        Mã <p-sortIcon field="code" />
+      </th>
+      <th pSortableColumn="name" class="font-bold">
+        Tên <p-sortIcon field="name" />
+      </th>
+      <th pSortableColumn="scope" class="text-center font-bold">
+        Scope <p-sortIcon field="scope" />
+      </th>
+      <th pSortableColumn="forLeaderOnly" class="text-center font-bold">
+        Chỉ lãnh đạo? <p-sortIcon field="forLeaderOnly" />
+      </th>
+      <th pSortableColumn="active" class="text-center font-bold">
+        Trạng thái <p-sortIcon field="active" />
+      </th>
+      <th class="text-center font-bold" style="width: 140px"></th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
+    <tr>
+      <td class="text-center">
+        <p-tableCheckbox [value]="r" />
+      </td>
+      <td class="text-center">{{ dt.first + rowIndex + 1 }}</td>
+      <td class="font-mono text-slate-600">{{ r.code }}</td>
+      <td>{{ r.name }}</td>
+      <td class="text-center">{{ r.scope }}</td>
+      <td class="text-center">
+        <span
+          *ngIf="r.forLeaderOnly"
+          class="inline-flex items-center gap-1 text-blue-600 text-xs font-medium bg-blue-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-star-fill"></i> Lãnh đạo
+        </span>
+        <span *ngIf="!r.forLeaderOnly" class="text-slate-500">—</span>
+      </td>
+      <td class="text-center">
+        <span
+          *ngIf="r.active"
+          class="inline-flex items-center gap-1 text-green-600 text-xs font-medium bg-green-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-check-circle"></i> Kích hoạt
+        </span>
+        <span
+          *ngIf="!r.active"
+          class="inline-flex items-center gap-1 text-red-500 text-xs font-medium bg-red-50 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-times-circle"></i> Ngừng
+        </span>
+      </td>
+      <td class="text-center">
+        <button
+          *hasPermission="'catalog.edit'"
+          pButton
+          icon="pi pi-pencil"
+          class="p-button-text p-button-sm text-blue-600"
+          (click)="edit(r)"
+          pTooltip="Sửa"
+        ></button>
+        <button
+          *hasPermission="'catalog.delete'"
+          pButton
+          class="p-button-text p-button-sm"
+          (click)="remove(r)"
+          pTooltip="Xóa"
+        >
+          <i class="pi pi-trash text-red-600"></i>
+        </button>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<p-dialog
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{ width: '520px' }"
+  header="{{ editId ? 'Sửa' : 'Thêm' }} vai trò trực"
+>
+  <div class="grid grid-cols-2 gap-3">
+    <div><label>Code</label><input pInputText [(ngModel)]="form.code" /></div>
+    <div><label>Tên</label><input pInputText [(ngModel)]="form.name" /></div>
+    <div>
+      <label>Scope</label
+      ><p-dropdown
+        [options]="scopes"
+        optionLabel="label"
+        optionValue="value"
+        [(ngModel)]="form.scope"
+      ></p-dropdown>
+    </div>
+    <div class="flex items-center gap-2">
+      <p-inputSwitch [(ngModel)]="form.forLeaderOnly"></p-inputSwitch
+      ><span>Chỉ lãnh đạo</span>
+    </div>
+    <div class="col-span-2 flex items-center gap-2">
+      <p-inputSwitch [(ngModel)]="form.active"></p-inputSwitch
+      ><span>Kích hoạt</span>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      label="Hủy"
+      class="p-button-text"
+      (click)="visible = false"
+    ></button>
+    <button pButton label="Lưu" (click)="save()"></button>
+  </ng-template>
+</p-dialog>

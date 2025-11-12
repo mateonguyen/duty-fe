@@ -1,0 +1,78 @@
+<div>
+  <!-- Header thứ -->
+  <div
+    class="grid sticky top-0 z-10"
+    [style.gridTemplateColumns]="'repeat(7, minmax(0,1fr))'"
+  >
+    <div
+      *ngFor="let i of [1, 2, 3, 4, 5, 6, 0]"
+      class="py-2 px-2 text-center font-semibold border-t border-b bg-white"
+    >
+      {{ ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][i] }}
+    </div>
+  </div>
+
+  <!-- Các tuần -->
+  <div
+    *ngFor="let week of weeks()"
+    class="grid"
+    [style.gridTemplateColumns]="'repeat(7, minmax(0,1fr))'"
+  >
+    <div
+      *ngFor="let d of week"
+      class="relative min-h-[96px] border-r border-b p-1"
+      [ngClass]="{
+        'bg-slate-200': !d.inRange,
+        'ring-2 ring-inset ring-blue-500': isToday(d.date)
+      }"
+      cdkDropList
+      (cdkDropListDropped)="onStaffDrop($event, d)"
+    >
+      <!-- date -->
+      <div
+        class="absolute left-1 top-1 text-sm font-semibold"
+        [class.text-slate-400]="!d.inRange && !isToday(d.date)"
+        [class.text-slate-700]="d.inRange && !isToday(d.date)"
+        [class.text-blue-700]="isToday(d.date)"
+      >
+        {{ d.date | date : "d" }}
+      </div>
+
+      <div class="absolute right-1 top-1 text-[11px]">
+        <button
+          *ngIf="d.inRange && !readOnly"
+          pButton
+          icon="pi pi-plus"
+          class="p-button-text p-button-sm"
+          (click)="quickAdd.emit(d.key)"
+        ></button>
+      </div>
+
+      <!-- chips -->
+      <div class="flex flex-wrap gap-1 pt-5 pr-6">
+        <span
+          *ngFor="let a of cellAssignments(d.key)"
+          class="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
+          [ngClass]="{
+            'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300':
+              a.isLeader,
+            'bg-slate-100 text-slate-700': !a.isLeader
+          }"
+        >
+          <i
+            *ngIf="a.isLeader"
+            class="pi pi-star-fill text-yellow-500 text-[10px]"
+          ></i>
+          {{ a.userName }}
+          <button
+            *ngIf="!readOnly"
+            pButton
+            icon="pi pi-times"
+            class="p-button-text p-button-sm !w-4 !h-4 !p-0"
+            (click)="remove.emit(a)"
+          ></button>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

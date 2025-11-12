@@ -1,0 +1,130 @@
+.page {
+  padding: 16px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* Search box: place icon inside input and style placeholder */
+.search-box {
+  position: relative;
+
+  > i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280; /* slate-500 */
+    z-index: 1;
+  }
+
+  input[pinputtext] {
+    padding-left: 2.25rem !important;
+    &::placeholder {
+      color: #9ca3af; /* gray-400 */
+    }
+  }
+}
+
+/* Permissions dialog */
+:host ::ng-deep .p-dialog .p-dialog-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.perm-panel {
+  padding: 12px 16px 4px 16px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.perm-item {
+  display: grid;
+  grid-template-columns: 28px minmax(120px, auto) 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 6px;
+}
+.perm-item:hover {
+  background: #f8fafc;
+}
+.perm-item .code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+  color: #7c3aed;
+  background: #f3e8ff;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.perm-item .name {
+  font-weight: 500;
+}
+.perm-item .desc {
+  grid-column: 2 / -1;
+  color: #64748b; /* slate-500 */
+}
+
+.saving {
+  padding: 8px 6px;
+  color: #0f766e;
+}
+
+/* Permission group header */
+.perm-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.perm-group-header:hover {
+  background: #e0e7ef;
+}
+.perm-group-header .group-label {
+  text-transform: capitalize;
+  font-size: 1rem;
+  color: #0f172a;
+}
+.perm-group-header .pi {
+  font-size: 1.1rem;
+  color: #64748b;
+}
+.perm-group-header p-checkbox {
+  margin-left: 8px;
+}
+.perm-group-header .flex-1 {
+  flex: 1;
+}
+.search-box {
+  position: relative;
+  display: inline-block;
+}
+.search-box > i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  z-index: 1;
+}
+.search-box input[pinputtext] {
+  padding-left: 2.25rem !important;
+  &::placeholder {
+    color: #9ca3af;
+  }
+}

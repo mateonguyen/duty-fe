@@ -1,0 +1,203 @@
+<div class="p-4 md:p-6 space-y-8">
+  <!-- Quick stats -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div
+      *ngFor="let s of stats"
+      class="stat-card-wrapper"
+      [ngClass]="s.colorClass"
+    >
+      <div class="stat-content">
+        <div class="stat-icon-wrapper">
+          <i class="pi stat-icon" [ngClass]="s.icon"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ s.value }}</div>
+          <div class="stat-label">{{ s.label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left column: both main tables stacked -->
+    <div class="lg:col-span-2 flex flex-col gap-4 left-stack">
+      <!-- Upcoming shifts -->
+      <p-card class="home-card main-table-card">
+        <ng-template pTemplate="header">
+          <div class="flex items-center justify-between">
+            <div class="font-semibold">Ca trực sắp tới</div>
+            <a class="text-primary hover:underline" routerLink="/schedule"
+              >Xem lịch</a
+            >
+          </div>
+        </ng-template>
+
+        <p-table [value]="upcoming" [tableStyle]="{ 'min-width': '40rem' }">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Ngày</th>
+              <th>Giờ</th>
+              <th>Địa điểm</th>
+              <th>Vai trò</th>
+              <th>Trạng thái</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.date }}</td>
+              <td>{{ r.time }}</td>
+              <td>{{ r.location }}</td>
+              <td>{{ r.role }}</td>
+              <td>
+                <p-tag
+                  [value]="r.status || 'Scheduled'"
+                  [severity]="r.status === 'Pending Swap' ? 'warn' : 'success'"
+                  class="text-xs"
+                ></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+
+      <!-- Today coverage -->
+      <p-card class="home-card main-table-card">
+        <ng-template pTemplate="header">
+          <div class="font-semibold">Trực hôm nay</div>
+        </ng-template>
+        <p-table [value]="todayCoverage">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Địa điểm</th>
+              <th>Vai trò</th>
+              <th>Phân công</th>
+              <th>Giờ</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.location }}</td>
+              <td>{{ r.role }}</td>
+              <td>
+                <div class="flex items-center gap-2">
+                  <p-avatar
+                    label="{{ r.assignee[0] }}"
+                    shape="circle"
+                  ></p-avatar>
+                  <span>{{ r.assignee }}</span>
+                </div>
+              </td>
+              <td>{{ r.time }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+
+    <!-- Right column: stacked cards, spacing consistent -->
+    <div class="flex flex-col gap-6">
+      <p-card class="home-card">
+        <ng-template pTemplate="header">
+          <div class="font-semibold">Thông báo</div>
+        </ng-template>
+        <div class="space-y-4">
+          <div *ngFor="let a of announcements" class="flex gap-3">
+            <p-avatar
+              icon="pi pi-megaphone"
+              styleClass="!bg-primary/10 !text-primary"
+            ></p-avatar>
+            <div>
+              <div class="font-medium">{{ a.title }}</div>
+              <div class="text-surface-500 text-sm">{{ a.content }}</div>
+              <div class="text-surface-400 text-xs mt-1">{{ a.time }}</div>
+            </div>
+          </div>
+        </div>
+      </p-card>
+
+      <p-card class="home-card">
+        <ng-template pTemplate="header">
+          <div class="font-semibold">Thao tác nhanh</div>
+        </ng-template>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            *ngFor="let q of quickActions"
+            pButton
+            type="button"
+            [icon]="q.icon"
+            [label]="q.label"
+            class="p-button-rounded p-button-outlined w-full"
+            [routerLink]="q.routerLink"
+          ></button>
+        </div>
+      </p-card>
+
+      <p-card class="home-card activity-card">
+        <ng-template pTemplate="header">
+          <div class="font-semibold">Hoạt động gần đây</div>
+        </ng-template>
+        <div class="activity-timeline">
+          <div *ngFor="let a of activity" class="activity-item">
+            <div class="activity-time">{{ a.when }}</div>
+            <div class="activity-content">
+              <div class="activity-title">{{ a.title }}</div>
+              <div class="activity-text">{{ a.text }}</div>
+            </div>
+          </div>
+        </div>
+      </p-card>
+
+      <p-card class="home-card">
+        <ng-template pTemplate="header">
+          <div class="font-semibold">Liên kết hữu ích</div>
+        </ng-template>
+        <div class="space-y-3">
+          <a
+            routerLink="/admin/catalog/duty-locations"
+            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
+          >
+            <i class="pi pi-list text-primary text-lg"></i>
+            <div>
+              <div
+                class="text-sm font-medium text-surface-900 group-hover:text-primary"
+              >
+                Quản lý danh mục
+              </div>
+              <div class="text-xs text-surface-500">
+                Địa điểm, ca trực, vai trò
+              </div>
+            </div>
+          </a>
+          <a
+            routerLink="/admin/access/roles"
+            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
+          >
+            <i class="pi pi-shield text-primary text-lg"></i>
+            <div>
+              <div
+                class="text-sm font-medium text-surface-900 group-hover:text-primary"
+              >
+                Quyền và vai trò
+              </div>
+              <div class="text-xs text-surface-500">Phân quyền hệ thống</div>
+            </div>
+          </a>
+          <a
+            routerLink="/schedule"
+            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
+          >
+            <i class="pi pi-calendar-plus text-primary text-lg"></i>
+            <div>
+              <div
+                class="text-sm font-medium text-surface-900 group-hover:text-primary"
+              >
+                Lập lịch tháng
+              </div>
+              <div class="text-xs text-surface-500">Tạo và quản lý kỳ lịch</div>
+            </div>
+          </a>
+        </div>
+      </p-card>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,104 @@
+<!-- Header Section -->
+<div class="flex items-center justify-between mb-3">
+  <h3
+    class="text-lg font-semibold uppercase flex items-center gap-2"
+    *ngIf="role() as r"
+  >
+    <i class="pi pi-shield text-blue-600"></i>
+    PHÂN QUYỀN
+    <span
+      class="text-slate-500 normal-case font-normal"
+      style="font-size: 0.95rem"
+    >
+      - {{ r.name }} ({{ r.code }})
+    </span>
+  </h3>
+  <div class="flex gap-2">
+    <span class="search-box" style="width: 280px">
+      <i class="pi pi-search"></i>
+      <input
+        pInputText
+        type="text"
+        placeholder="Tìm quyền..."
+        [(ngModel)]="permFilter"
+        style="width: 100%"
+      />
+    </span>
+    <button
+      pButton
+      type="button"
+      label="Quay lại"
+      icon="pi pi-arrow-left"
+      class="p-button-outlined"
+      routerLink="/admin/access/roles"
+    ></button>
+    <button
+      pButton
+      type="button"
+      label="Lưu"
+      icon="pi pi-save"
+      class="p-button-primary"
+      (click)="savePermissions()"
+      [disabled]="saving()"
+      [loading]="saving()"
+    ></button>
+  </div>
+</div>
+
+<!-- Content Section -->
+<p-card *ngIf="role() as r">
+  <div class="section-header">
+    <i class="pi pi-lock text-lg text-blue-600"></i>
+    <h3 class="text-lg font-semibold text-slate-700">Danh sách quyền</h3>
+    <span class="permission-count">{{ allPermissions().length }} quyền</span>
+  </div>
+
+  <div class="permission-groups">
+    <div class="perm-group" *ngFor="let g of permGroups">
+      <div class="group-header" (click)="toggleGroupOpen(g)">
+        <i
+          class="pi chevron-icon"
+          [ngClass]="g.open ? 'pi-chevron-down' : 'pi-chevron-right'"
+        ></i>
+        <span class="group-name">{{ g.prefix }}</span>
+        <span class="group-count">({{ g.items.length }})</span>
+        <span class="flex-1"></span>
+        <p-checkbox
+          [binary]="true"
+          [ngModel]="isGroupChecked(g)"
+          (onChange)="selectAllInGroup(g, $event.checked)"
+          label="Chọn tất cả"
+          (click)="$event.stopPropagation()"
+        ></p-checkbox>
+      </div>
+
+      <div class="group-items" *ngIf="g.open">
+        <div
+          class="perm-item"
+          *ngFor="let p of g.items"
+          [hidden]="
+            permFilter &&
+            !(p.code + ' ' + p.name + ' ' + (p.description || ''))
+              .toLowerCase()
+              .includes(permFilter.toLowerCase())
+          "
+        >
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="isChecked(p.code)"
+            (onChange)="togglePermission(p.code, $event.checked)"
+          ></p-checkbox>
+          <div class="perm-details">
+            <div class="perm-main">
+              <span class="perm-code">{{ p.code }}</span>
+              <span class="perm-name">{{ p.name }}</span>
+            </div>
+            <small class="perm-desc" *ngIf="p.description">{{
+              p.description
+            }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</p-card>

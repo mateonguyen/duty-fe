@@ -1,0 +1,32 @@
+<div class="p-4 space-y-3" *ngIf="roster(); else loadingTpl">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-lg font-semibold">{{ roster()!.name }}</h2>
+      <div class="text-sm text-slate-600">
+        {{ roster()!.scopeUnitName }} •
+        {{ roster()!.periodStart | date : "dd/MM/yyyy" }} -
+        {{ roster()!.periodEnd | date : "dd/MM/yyyy" }}
+      </div>
+    </div>
+
+    <p-dropdown
+      [options]="options()"
+      [ngModel]="selectedShiftId()"
+      (ngModelChange)="selectedShiftId.set($event)"
+      placeholder="Chọn ca trực"
+      [style]="{ width: '240px' }"
+    ></p-dropdown>
+  </div>
+
+  <app-month-board
+    [from]="periodFrom()"
+    [to]="periodTo()"
+    [selectedShiftId]="selectedShiftId()"
+    [assignments]="assignments()"
+    [readOnly]="true"
+  />
+</div>
+
+<ng-template #loadingTpl>
+  <div class="p-8 text-center text-slate-600">Đang tải lịch trực...</div>
+</ng-template>

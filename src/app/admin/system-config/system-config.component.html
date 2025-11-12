@@ -1,0 +1,70 @@
+<div class="system-config-page">
+  <h2>Cấu hình hệ thống</h2>
+  <p *ngIf="loading()">Đang tải...</p>
+  <div *ngIf="!loading()">
+    <section
+      *ngIf="leaderConfig() as leader"
+      class="leader-config mb-4 p-3 border rounded"
+    >
+      <h3>Quy tắc lãnh đạo</h3>
+      <label>
+        {{ leader.key }}
+      </label>
+      <input
+        [(ngModel)]="leader.value"
+        name="leader-{{ leader.key }}"
+        type="number"
+        step="1"
+        min="1"
+        class="numeric-step"
+        style="width: 6.5rem"
+      />
+      <div class="text-xs text-slate-500 mt-1">
+        Số mức C_LEVEL tính từ mức thấp nhất trong đơn vị để coi là lãnh đạo (ví
+        dụ 2 = minLevel và minLevel+1)
+      </div>
+      <div *ngIf="leaderError" class="text-sm text-red-600 mt-1">
+        {{ leaderError }}
+      </div>
+      <div class="mt-2">
+        <button (click)="saveLeader()" [disabled]="savingLeader">
+          <i *ngIf="savingLeader" class="pi pi-spin pi-spinner mr-2"></i>
+          Lưu quy tắc lãnh đạo
+        </button>
+        <span class="ml-3 text-sm text-green-700" *ngIf="leaderMessage">{{
+          leaderMessage
+        }}</span>
+      </div>
+    </section>
+
+    <form (ngSubmit)="save()">
+      <div *ngFor="let config of configs()" class="config-row">
+        <ng-container *ngIf="config.key !== 'LeaderPositionLevelRange'">
+          <label
+            >{{ config.key }}
+            <span *ngIf="config.description"
+              >({{ config.description }})</span
+            ></label
+          >
+          <input
+            [(ngModel)]="config.value"
+            name="{{ config.key }}"
+            [type]="getInputType(config.key)"
+            [attr.min]="config.key === 'LeaderPositionLevelRange' ? 1 : null"
+            [attr.step]="getInputType(config.key) === 'number' ? 1 : null"
+            class="numeric-step"
+            style="width: 6.5rem"
+          />
+          <div *ngIf="errors[config.key]" class="text-sm text-red-600 mt-1">
+            {{ errors[config.key] }}
+          </div>
+        </ng-container>
+      </div>
+      <button type="submit" [disabled]="saving">
+        <i *ngIf="saving" class="pi pi-spin pi-spinner mr-2"></i>
+        Lưu cấu hình
+      </button>
+    </form>
+    <p *ngIf="message">{{ message }}</p>
+  </div>
+</div>

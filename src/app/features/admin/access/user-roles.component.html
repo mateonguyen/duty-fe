@@ -1,0 +1,203 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="flex items-center justify-between mb-3">
+  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+    <i class="pi pi-user text-blue-600"></i>
+    Gán vai trò cho người dùng
+  </h3>
+</div>
+
+<div class="bg-white rounded-lg border border-slate-200 p-4 mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-start">
+    <div class="md:col-span-2">
+      <label class="block text-sm font-medium mb-1">Người dùng</label>
+      <p-autoComplete
+        [(ngModel)]="selectedUser"
+        [suggestions]="filteredUsers"
+        (completeMethod)="searchUser($event)"
+        (onSelect)="onUserSelect($event)"
+        (onClear)="onUserCleared()"
+        (ngModelChange)="onUserModelChange($event)"
+        [showClear]="true"
+        [forceSelection]="true"
+        field="username"
+        placeholder="Tìm kiếm người dùng..."
+        [dropdown]="false"
+        styleClass="w-full"
+        [inputStyleClass]="'w-full'"
+        #userAutoComplete
+      >
+        <ng-template let-user pTemplate="item">
+          <div class="flex flex-col">
+            <span class="font-semibold">{{ user.username }}</span>
+            <span
+              class="text-xs text-slate-500"
+              *ngIf="user.orgUnitName || user.positionCode || user.positionName"
+            >
+              <ng-container *ngIf="user.positionName || user.positionCode">
+                <span
+                  class="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded mr-1"
+                >
+                  {{ user.positionName || user.positionCode }}
+                  <small *ngIf="user.positionLevel" class="ml-1 opacity-70"
+                    >#{{ user.positionLevel }}</small
+                  >
+                </span>
+              </ng-container>
+              <ng-container *ngIf="user.orgUnitName">{{
+                user.orgUnitName
+              }}</ng-container>
+            </span>
+          </div>
+        </ng-template>
+      </p-autoComplete>
+    </div>
+    <div class="md:col-span-1">
+      <label class="block text-sm font-medium mb-1">Vai trò</label>
+      <p-dropdown
+        [options]="roleOptions"
+        [(ngModel)]="selectedRoleCode"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Chọn vai trò"
+        [style]="{ width: '100%' }"
+        [styleClass]="'w-full'"
+        [showClear]="true"
+      >
+        <ng-template let-role pTemplate="item">
+          <div class="flex items-center gap-2">
+            <span>{{ role.name }}</span>
+            <span
+              class="px-2 py-0.5 text-xs font-mono bg-blue-100 text-blue-700 rounded"
+              >{{ role.code }}</span
+            >
+          </div>
+        </ng-template>
+        <ng-template let-role pTemplate="selectedItem">
+          <div class="flex items-center gap-2" *ngIf="role">
+            <span>{{ role.name }}</span>
+            <span
+              class="px-2 py-0.5 text-xs font-mono bg-blue-100 text-blue-700 rounded"
+              >{{ role.code }}</span
+            >
+          </div>
+        </ng-template>
+      </p-dropdown>
+    </div>
+    <div class="md:col-span-1 unit-col min-w-0">
+      <label class="block text-sm font-medium mb-1 flex items-center gap-2">
+        Đơn vị áp dụng
+        <i
+          class="pi pi-info-circle text-slate-400 cursor-help"
+          pTooltip="Để trống = Global. Khi chọn đơn vị, quyền sẽ áp dụng theo phạm vi."
+          tooltipPosition="top"
+        ></i>
+      </label>
+      <p-treeSelect
+        [options]="orgTree"
+        [(ngModel)]="selectedOrgNode"
+        placeholder="Chọn đơn vị..."
+        selectionMode="single"
+        [filter]="true"
+        [showClear]="true"
+        [appendTo]="'body'"
+        [scrollHeight]="'320px'"
+        [style]="{ width: '100%' }"
+        (onNodeSelect)="onScopeNodeChange()"
+        (onClear)="clearScope()"
+      ></p-treeSelect>
+    </div>
+    <div class="md:col-span-1 md:justify-start">
+      <label class="block text-sm font-medium mb-1 invisible" aria-hidden="true"
+        >Hành động</label
+      >
+      <div class="flex gap-2">
+        <button
+          *hasPermission="'role.assign'"
+          pButton
+          label="Gán vai trò"
+          icon="pi pi-plus"
+          (click)="assign()"
+          [disabled]="
+            !selectedRoleCode || (!selectedUser && !username) || loading
+          "
+          [loading]="loading"
+        ></button>
+        <button
+          *hasPermission="'role.assign'"
+          pButton
+          label="Gán Viewer"
+          icon="pi pi-eye"
+          severity="secondary"
+          (click)="assignViewer()"
+          [disabled]="(!selectedUser && !username) || loading"
+          [loading]="loading"
+          pTooltip="Gán vai trò Viewer (chỉ xem) cho người dùng"
+          tooltipPosition="top"
+        ></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p-table
+  [value]="userRoles"
+  [paginator]="true"
+  [rows]="10"
+  [rowsPerPageOptions]="[10, 25, 50]"
+  [showCurrentPageReport]="true"
+  currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
+  styleClass="catalog-table"
+  [loading]="loading"
+>
+  <ng-template pTemplate="header">
+    <tr>
+      <th class="font-bold">Vai trò</th>
+      <th class="font-bold">Scope</th>
+      <th class="text-center font-bold" style="width: 120px"></th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-ur>
+    <tr>
+      <td>
+        <div class="font-semibold">{{ ur.roleName }}</div>
+        <div class="text-sm text-slate-500 font-mono">{{ ur.roleCode }}</div>
+      </td>
+      <td>
+        <span *ngIf="ur.scopeUnitCode" class="font-mono text-blue-600">{{
+          ur.scopeUnitCode
+        }}</span>
+        <span *ngIf="!ur.scopeUnitCode" class="text-slate-400">Global</span>
+        <span *ngIf="ur.includeChildren" class="ml-2 text-xs text-slate-500"
+          >(bao gồm đơn vị con)</span
+        >
+      </td>
+      <td class="text-center">
+        <button
+          *hasPermission="'role.assign'"
+          pButton
+          class="p-button-text p-button-sm"
+          pTooltip="Thu hồi"
+          (click)="revoke(ur)"
+        >
+          <i class="pi pi-trash text-red-600"></i>
+        </button>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="3" class="text-center text-slate-500 py-8">
+        <i class="pi pi-info-circle text-2xl mb-2"></i>
+        <div>
+          {{
+            selectedUser || username
+              ? "Người dùng chưa được gán vai trò nào"
+              : 'Chọn người dùng và nhấn "Tải quyền" để xem'
+          }}
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

@@ -1,0 +1,24 @@
+<div class="h-full p-3 bg-white">
+  <div class="text-sm text-slate-500 mb-2">Chi tiết</div>
+
+  <ng-container *ngIf="selectedUser; else pickHint">
+    <div class="font-semibold">{{ selectedUser?.displayName }}</div>
+    <div class="text-xs text-slate-500">{{ selectedUser?.positionName }}</div>
+    <div class="text-xs text-slate-500 mb-3">ĐT: {{ selectedUser?.phone }}</div>
+
+    <div class="text-xs text-slate-500 mb-1">Đã phân công:</div>
+    <ul class="text-sm">
+      <!-- <li
+        *ngFor="let a of assignments | slice : 0; let i = index"
+        class="py-1 border-b last:border-0"
+        *ngIf="a.userId === selectedUser?.id"
+      >
+        {{ a.date }} · Ca #{{ a.shiftId }}
+      </li> -->
+    </ul>
+  </ng-container>
+
+  <ng-template #pickHint>
+    <div class="text-xs text-slate-400">Chọn 1 cán bộ ở panel bên trái.</div>
+  </ng-template>
+</div>

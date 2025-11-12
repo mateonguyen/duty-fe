@@ -1,0 +1,15 @@
+::ng-deep {
+  .small-dropdown.p-dropdown {
+    height: 2.5rem;
+    font-size: 0.875rem;
+  }
+
+  .small-dropdown.p-dropdown .p-dropdown-label {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .small-dropdown.p-dropdown .p-dropdown-trigger {
+    width: 2.357rem;
+  }
+}
