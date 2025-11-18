@@ -1,4 +1,11 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  signal,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InputTextModule } from 'primeng/inputtext';
 import { DragDropModule } from '@angular/cdk/drag-drop';
@@ -7,6 +14,7 @@ import { AccordionModule } from 'primeng/accordion';
 import { FormsModule } from '@angular/forms';
 import { SimpleUser } from '../../schedule';
 import { OrgUnitNodeWithStaff } from '../schedule-page.component';
+import { SystemConfigService } from '../../../admin/system-config/system-config.service';
 
 @Component({
   standalone: true,
@@ -26,6 +34,8 @@ export class StaffTreeComponent {
   @Input() orgTree: OrgUnitNodeWithStaff[] | null = null;
   @Input() selectedUser: SimpleUser | null = null;
   @Output() selectUser = new EventEmitter<SimpleUser | null>();
+
+  private configService = inject(SystemConfigService);
 
   query = signal('');
   // key by org unit CODE (string) because numeric id may be 0 for many records from backend
@@ -50,10 +60,12 @@ export class StaffTreeComponent {
   }
 
   // Filter tree by query (search by displayName, positionName, ...), không dấu
+  // Also filter by C_LEVEL: only show staff with positionLevel <= MaxAssignableCLevel
   get filteredTree(): OrgUnitNodeWithStaff[] | null {
     const qRaw = this.query().trim();
     const q = this.removeDiacritics(qRaw).toLowerCase();
-    if (!q) return this.orgTree;
+    const maxCLevel = this.configService.maxAssignableCLevel();
+
     if (!this.orgTree) return null;
 
     const removeDiacritics = this.removeDiacritics;
@@ -63,6 +75,12 @@ export class StaffTreeComponent {
     ): OrgUnitNodeWithStaff | null {
       // Filter staff in this node
       const filteredStaff = (node.staff || []).filter((u) => {
+        // C_LEVEL filter: exclude users with positionLevel > maxCLevel
+        if (u.positionLevel && u.positionLevel > maxCLevel) {
+          return false;
+        }
+        // Query filter (search)
+        if (!q) return true;
         const name = removeDiacritics(u.displayName || '').toLowerCase();
         const pos = removeDiacritics(u.positionName || '').toLowerCase();
         return name.includes(q) || pos.includes(q);

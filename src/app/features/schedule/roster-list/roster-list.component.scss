@@ -12,4 +12,14 @@
   .small-dropdown.p-dropdown .p-dropdown-trigger {
     width: 2.357rem;
   }
+
+  // Compact panels for year/month dropdowns
+  .compact-panel .p-dropdown-panel {
+    min-width: 140px !important;
+  }
+
+  // Wider panels for status/filter dropdowns
+  .wide-panel .p-dropdown-panel {
+    min-width: 280px !important;
+  }
 }

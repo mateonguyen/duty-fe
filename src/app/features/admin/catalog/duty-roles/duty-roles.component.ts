@@ -6,6 +6,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 
 import { CommonModule } from '@angular/common';
 import {
@@ -63,7 +64,7 @@ export class DutyRolesComponent implements OnInit {
   }
   async load() {
     this.loading = true;
-    this.rows = (await this.api.getDutyRoles().toPromise()) || [];
+    this.rows = (await firstValueFrom(this.api.getDutyRoles())) || [];
     this.loading = false;
   }
 
@@ -109,8 +110,8 @@ export class DutyRolesComponent implements OnInit {
     }
     try {
       if (this.editId)
-        await this.api.updateDutyRole(this.editId, this.form).toPromise();
-      else await this.api.createDutyRole(this.form).toPromise();
+        await firstValueFrom(this.api.updateDutyRole(this.editId, this.form));
+      else await firstValueFrom(this.api.createDutyRole(this.form));
       this.msg.add({ severity: 'success', summary: 'Đã lưu' });
       this.visible = false;
       await this.load();
@@ -126,7 +127,7 @@ export class DutyRolesComponent implements OnInit {
 
   async remove(r: DutyRoleReadDto) {
     if (!confirm(`Xóa "${r.name}"?`)) return;
-    await this.api.deleteDutyRole(r.id).toPromise();
+    await firstValueFrom(this.api.deleteDutyRole(r.id));
     await this.load();
   }
 
@@ -134,7 +135,7 @@ export class DutyRolesComponent implements OnInit {
     if (!this.selected?.length) return;
     if (!confirm(`Xóa ${this.selected.length} mục đã chọn?`)) return;
     await Promise.all(
-      this.selected.map((r) => this.api.deleteDutyRole(r.id).toPromise())
+      this.selected.map((r) => firstValueFrom(this.api.deleteDutyRole(r.id)))
     );
     this.selected = [];
     await this.load();
@@ -144,15 +145,15 @@ export class DutyRolesComponent implements OnInit {
     if (!this.selected.length) return;
     await Promise.all(
       this.selected.map((r) =>
-        this.api
-          .updateDutyRole(r.id, {
+        firstValueFrom(
+          this.api.updateDutyRole(r.id, {
             code: r.code,
             name: r.name,
             forLeaderOnly: r.forLeaderOnly,
             scope: r.scope,
             active: !r.active,
           })
-          .toPromise()
+        )
       )
     );
     this.selected = [];

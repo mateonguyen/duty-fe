@@ -1,0 +1,375 @@
+/* ========================================
+   MODERN CALENDAR UI - PREMIUM DESIGN
+   Linear/Notion/Google Calendar inspired
+   ======================================== */
+
+/* === 1. CALENDAR CONTAINER === */
+.calendar-container {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 8px;
+  overflow: hidden;
+}
+
+/* === 2. HEADER (T2-CN) === */
+.calendar-header {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f2f5f7;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 0;
+}
+
+.header-cell {
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  user-select: none;
+
+  &.weekend {
+    color: #0a8f4b;
+  }
+}
+
+/* === 3. CALENDAR WEEK ROWS === */
+.calendar-week {
+  display: grid;
+}
+
+/* Week highlight (subtle background on rows) */
+.calendar-row {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+/* Zebra subtle effect (even rows) */
+.calendar-row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* === 4. CALENDAR CELLS === */
+.calendar-cell {
+  position: relative;
+  min-height: 96px;
+  background: #fcfcfc;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  transition: background 0.12s ease-out;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  /* Out-of-range cells (days outside current month) */
+  &.out-of-range {
+    background: #f5f5f5;
+  }
+
+  /* Today highlight */
+  &.is-today {
+    background: rgba(10, 143, 75, 0.07);
+    border: 1px solid rgba(10, 143, 75, 0.3);
+    border-radius: 6px;
+  }
+
+  /* Selected user highlight */
+  &.has-selected-user {
+    background: rgba(234, 179, 8, 0.08) !important;
+    border: 2px solid rgb(234, 179, 8) !important;
+    border-radius: 6px;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 6px;
+      height: 6px;
+      background-color: rgb(234, 179, 8);
+      border-radius: 50%;
+      z-index: 1;
+    }
+  }
+}
+
+/* === 5. CELL HEADER (Date + Add Button) === */
+.cell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.date-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f2f2f;
+  line-height: 1;
+
+  &.out-of-range-date {
+    color: rgba(0, 0, 0, 0.35);
+  }
+
+  &.today-badge {
+    background: rgba(10, 143, 75, 0.08);
+    color: #0a8f4b;
+    border-radius: 999px;
+    padding: 3px 7px;
+  }
+}
+
+/* Add button (+) */
+.add-btn {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  min-width: 20px !important;
+  background: transparent !important;
+  border: none !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  transition: all 0.12s ease;
+
+  .pi {
+    font-size: 14px;
+  }
+
+  &:hover {
+    color: #0a8f4b !important;
+    background: transparent !important;
+    transform: scale(1.12);
+  }
+
+  &:active,
+  &:focus {
+    box-shadow: none !important;
+  }
+}
+
+/* === 6. CELL CONTENT (CHIPS AREA) === */
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.assignments-leaders,
+.assignments-staff {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.assignments-staff {
+  flex-wrap: wrap;
+  flex-direction: row;
+}
+
+/* === 7. ASSIGNMENT CHIPS === */
+.assignment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Leader chip - Green accent */
+.leader-chip {
+  background: rgba(10, 143, 75, 0.12);
+  border: 1px solid rgba(10, 143, 75, 0.35);
+  color: #065f32;
+  font-weight: 600;
+
+  &:hover {
+    background: rgba(10, 143, 75, 0.18);
+    box-shadow: 0 2px 4px rgba(10, 143, 75, 0.25);
+  }
+
+  .chip-icon {
+    font-size: 11px;
+    color: #fbbf24; /* yellow-400 for star */
+  }
+}
+
+/* Staff chip - Neutral white */
+.staff-chip {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #333333;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.chip-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chip remove button (X) */
+.chip-remove {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+  margin-left: 2px;
+  transition: color 0.12s ease;
+
+  .pi {
+    font-size: 11px;
+  }
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.7) !important;
+    background: transparent !important;
+  }
+
+  &:active,
+  &:focus {
+    box-shadow: none !important;
+  }
+}
+
+/* === 8. OVERFLOW INDICATOR (+X) === */
+.overflow-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(10, 143, 75, 0.08);
+  color: #0a8f4b;
+  border: 1px solid rgba(10, 143, 75, 0.2);
+  cursor: pointer;
+  transition: all 0.12s ease;
+
+  &:hover {
+    background: rgba(10, 143, 75, 0.15);
+  }
+}
+
+/* === 9. POPOVER STYLING === */
+:host ::ng-deep .assignment-popover {
+  .p-overlaypanel-content {
+    padding: 0 !important;
+    width: 320px;
+  }
+}
+
+.popover-content {
+  padding: 16px;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(10, 143, 75, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a8f4b;
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.leader-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #0a8f4b;
+  font-weight: 500;
+
+  .pi {
+    font-size: 11px;
+    color: #fbbf24;
+  }
+}
+
+.popover-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.detail-icon {
+  color: #6b7280;
+  font-size: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 16px 0;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 13px;
+}

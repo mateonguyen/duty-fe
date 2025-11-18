@@ -21,10 +21,13 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { TooltipModule } from 'primeng/tooltip';
 import { RosterListItem, RosterStatus } from '../schedule';
+import { ROSTER_STATUS } from '../roster-status.constants';
 import { RosterApiService } from '../roster-api.service';
 import { AuthService } from '../../../core/auth/auth.service';
-import { ScopeService } from '../../../core/services/scope.service';
+import { ScopeService, ScopeRef } from '../../../core/services/scope.service';
 import { DiagnosticsService } from '../../../core/diagnostics/diagnostics.service';
+import { ScopePickerComponent } from '../../../shared/components/scope-picker/scope-picker.component';
+import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 
 @Component({
   standalone: true,
@@ -42,6 +45,8 @@ import { DiagnosticsService } from '../../../core/diagnostics/diagnostics.servic
     InputTextModule,
     TooltipModule,
     DatePipe,
+    ScopePickerComponent,
+    LoadingSpinnerComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './roster-list.component.html',
@@ -62,9 +67,18 @@ export class RosterListComponent implements OnInit {
   rosters = signal<RosterListItem[]>([]);
   loading = signal(false);
 
-  // Active scope for roster.view
-  activeScope = computed(() => this.scopeService.getActiveScope('roster.view'));
+  // Scope management
+  scopes = signal<ScopeRef[]>([]);
+  activeScope = signal<ScopeRef | null>(null);
   activeOrgId = computed(() => this.activeScope()?.orgId || null);
+  showUnitColumn = computed(() => {
+    const scope = this.activeScope();
+    // Show unit column only if "All Units" or no specific scope is selected
+    // For now, check if scope has a wildcard or is a top-level scope
+    return (
+      !scope || scope.orgId === 'ALL' || scope.displayName?.includes('Tất cả')
+    );
+  });
 
   // Filter controls
   selectedYear = new Date().getFullYear();
@@ -88,9 +102,9 @@ export class RosterListComponent implements OnInit {
   ];
   statusOptions = [
     { label: 'Tất cả trạng thái', value: 'ALL' },
-    { label: 'Bản thảo', value: 'DRAFT' },
-    { label: 'Đã công bố', value: 'PUBLISHED' },
-    { label: 'Đã khóa', value: 'LOCKED' },
+    { label: 'Bản thảo', value: ROSTER_STATUS.DRAFT },
+    { label: 'Đã công bố', value: ROSTER_STATUS.PUBLISHED },
+    { label: 'Đã khóa', value: ROSTER_STATUS.LOCKED },
   ];
 
   ngOnInit() {
@@ -99,22 +113,28 @@ export class RosterListComponent implements OnInit {
   }
 
   async initializeAndLoadRosters() {
-    // Guard ensures authentication; proceed directly
-    // if (!this.auth.isAuthenticated()) {
-    //   this.router.navigate(['/login']);
-    //   return;
-    // }
-
     // Runtime scopes: load from API then ensure active selection
     this.scopeService.load('roster.view').subscribe({
-      next: () => {
-        this.scopeService.ensureActive('roster.view');
-        const scope = this.scopeService.getActiveScope('roster.view');
-        if (!scope) {
-          console.warn('[RosterList] No active scope after load');
-          return; // render friendly empty state
+      next: (items) => {
+        this.scopes.set(items);
+
+        // Auto-select first scope if none is active (same pattern as schedule-page)
+        if (!this.activeScope() && items.length > 0) {
+          const first = items[0];
+          this.activeScope.set(first);
+          // Immediately load data for the selected scope
+          this.loadRosters();
+          console.debug('[RosterList] Auto-selected first scope:', first);
+        } else if (this.activeScope()) {
+          // Active scope already exists, just reload data
+          this.loadRosters();
+          console.debug(
+            '[RosterList] Using existing active scope:',
+            this.activeScope()
+          );
+        } else {
+          console.warn('[RosterList] No scopes available');
         }
-        this.loadRosters();
       },
       error: (err) => {
         console.error(
@@ -147,19 +167,10 @@ export class RosterListComponent implements OnInit {
       `[RosterList] Loading rosters for orgId=${orgId}, year=${this.selectedYear}, month=${this.selectedMonth}`
     );
 
-    // RosterApiService expects number unitId; if orgId string contains non-digits we skip load
-    const numericId = /^[0-9]+$/.test(orgId) ? Number(orgId) : null;
-    if (numericId === null) {
-      console.warn(
-        '[RosterList] orgId is non-numeric; skipping roster load:',
-        orgId
-      );
-      this.loading.set(false);
-      return;
-    }
-
+    // Use orgId as scopeCode directly (no longer need numeric conversion)
+    debugger;
     this.api
-      .getByMonth(numericId, this.selectedYear, this.selectedMonth)
+      .getByMonth(orgId, this.selectedYear, this.selectedMonth)
       .subscribe({
         next: (data) => {
           console.debug('[RosterList] Loaded rosters:', data);
@@ -191,32 +202,109 @@ export class RosterListComponent implements OnInit {
     this.loadRosters();
   }
 
+  onScopeChange(scope: ScopeRef | null) {
+    if (scope) {
+      this.activeScope.set(scope);
+      this.loadRosters();
+    }
+  }
+
   onSearch(value: string) {
     this.table?.filterGlobal(value, 'contains');
   }
 
   getSeverity(s: RosterStatus) {
     switch (s) {
-      case 'DRAFT':
+      case ROSTER_STATUS.DRAFT:
         return 'warning';
-      case 'PUBLISHED':
+      case ROSTER_STATUS.PUBLISHED:
         return 'success';
-      case 'LOCKED':
+      case ROSTER_STATUS.LOCKED:
         return 'secondary';
     }
   }
 
   getStatusLabel(s: RosterStatus) {
     switch (s) {
-      case 'DRAFT':
+      case ROSTER_STATUS.DRAFT:
         return 'Bản thảo';
-      case 'PUBLISHED':
+      case ROSTER_STATUS.PUBLISHED:
         return 'Đã công bố';
-      case 'LOCKED':
+      case ROSTER_STATUS.LOCKED:
         return 'Đã khóa';
       default:
         return s;
     }
+  }
+
+  // Format roster name by removing unit prefix if present
+  formatRosterName(roster: RosterListItem): string {
+    let name = roster.name || '';
+    // If name starts with unit name, trim it
+    if (roster.scopeUnitName && name.startsWith(roster.scopeUnitName)) {
+      name = name.substring(roster.scopeUnitName.length).trim();
+      // Remove leading dash or hyphen
+      name = name.replace(/^[-–—]\s*/, '');
+    }
+    return name || roster.name;
+  }
+
+  // Check if edit action is allowed
+  canEdit(roster: RosterListItem): boolean {
+    if (roster.status === 'LOCKED') return false;
+    if (roster.status === 'DRAFT') return true;
+    // PUBLISHED: check permission
+    return this.auth.hasPermission('roster.update');
+  }
+
+  // Show edit button (hidden for LOCKED)
+  showEdit(roster: RosterListItem): boolean {
+    return roster.status !== 'LOCKED';
+  }
+
+  // Show clone button (always show for now, can add business rules later)
+  showClone(roster: RosterListItem): boolean {
+    return true; // Clone is always available
+  }
+
+  // Check if publish action is shown
+  canPublish(roster: RosterListItem): boolean {
+    return roster.status === 'DRAFT';
+  }
+
+  // Check if unpublish action is shown
+  canUnpublish(roster: RosterListItem): boolean {
+    return roster.status === 'PUBLISHED';
+  }
+
+  // Check if lock action is shown (not for already locked)
+  canLock(roster: RosterListItem): boolean {
+    return roster.status !== 'LOCKED';
+  }
+
+  // Show lock icon (always show, disabled for LOCKED)
+  showLockIcon(roster: RosterListItem): boolean {
+    return true;
+  }
+
+  // Check if lock icon should be disabled
+  isLockDisabled(roster: RosterListItem): boolean {
+    return roster.status === 'LOCKED';
+  }
+
+  // Check if delete action is allowed
+  canDelete(roster: RosterListItem): boolean {
+    return roster.status === 'DRAFT';
+  }
+
+  // Show delete button (hidden for PUBLISHED and LOCKED)
+  showDelete(roster: RosterListItem): boolean {
+    return roster.status === 'DRAFT';
+  }
+
+  // Get row opacity class for locked rosters
+  getRowClass(roster: RosterListItem): string {
+    return roster.status === 'LOCKED' ? 'opacity-60' : '';
   }
 
   publish(row: RosterListItem) {
@@ -302,6 +390,25 @@ export class RosterListComponent implements OnInit {
             });
           },
         });
+      },
+    });
+  }
+
+  clone(row: RosterListItem) {
+    this.confirm.confirm({
+      header: 'Nhân bản kỳ lịch',
+      message: `Tạo bản sao của "${row.name}"?`,
+      icon: 'pi pi-copy',
+      acceptLabel: 'Nhân bản',
+      rejectLabel: 'Hủy',
+      accept: () => {
+        this.toast.add({
+          severity: 'info',
+          summary: 'Tính năng chưa khả dụng',
+          detail: 'Chức năng nhân bản đang được phát triển',
+        });
+        // TODO: Implement clone API call
+        // this.api.clone(row.id).subscribe(...)
       },
     });
   }

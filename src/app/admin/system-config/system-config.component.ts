@@ -19,6 +19,9 @@ export class SystemConfigComponent implements OnInit {
   savingLeader = false;
   leaderMessage = '';
   leaderError: string | null = null;
+  savingMaxAssignable = false;
+  maxAssignableMessage = '';
+  maxAssignableError: string | null = null;
   constructor(public svc: SystemConfigService) {
     this.configs = this.svc.configs;
     this.loading = this.svc.loading;
@@ -34,6 +37,12 @@ export class SystemConfigComponent implements OnInit {
   leaderConfig(): SystemConfig | undefined {
     return this.configs().find(
       (c: SystemConfig) => c.key === 'LeaderPositionLevelRange'
+    );
+  }
+
+  maxAssignableConfig(): SystemConfig | undefined {
+    return this.configs().find(
+      (c: SystemConfig) => c.key === 'MaxAssignableCLevel'
     );
   }
 
@@ -126,6 +135,29 @@ export class SystemConfigComponent implements OnInit {
       this.leaderMessage = 'Có lỗi khi lưu cấu hình lãnh đạo.';
     } finally {
       this.savingLeader = false;
+    }
+  }
+
+  async saveMaxAssignable() {
+    const cfg = this.maxAssignableConfig();
+    if (!cfg) return;
+    this.maxAssignableError = this.validateConfig(cfg);
+    if (this.maxAssignableError) {
+      this.maxAssignableMessage = 'Vui lòng sửa lỗi trước khi lưu.';
+      return;
+    }
+
+    this.savingMaxAssignable = true;
+    this.maxAssignableMessage = '';
+    try {
+      await this.svc.update(cfg).toPromise();
+      this.maxAssignableMessage = 'Lưu MaxAssignableCLevel thành công.';
+      // Reload configs to update the computed signal
+      this.svc.loadConfigs();
+    } catch (e) {
+      this.maxAssignableMessage = 'Có lỗi khi lưu ngưỡng C_LEVEL.';
+    } finally {
+      this.savingMaxAssignable = false;
     }
   }
 

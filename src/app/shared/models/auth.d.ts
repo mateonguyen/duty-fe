@@ -38,4 +38,5 @@ export interface UserSearchDto {
   positionLevel?: number | null;
   isLeader?: boolean | null;
   orgUnitId?: number | null;
+  phone?: string | null; // Phone number from eOffice, can be null
 }

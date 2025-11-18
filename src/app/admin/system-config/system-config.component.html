@@ -37,9 +37,51 @@
       </div>
     </section>
 
+    <section
+      *ngIf="maxAssignableConfig() as maxAssignable"
+      class="max-assignable-config mb-4 p-3 border rounded"
+    >
+      <h3>Ngưỡng phân công theo C_LEVEL</h3>
+      <label>
+        {{ maxAssignable.key }}
+      </label>
+      <input
+        [(ngModel)]="maxAssignable.value"
+        name="maxAssignable-{{ maxAssignable.key }}"
+        type="number"
+        step="1"
+        min="1"
+        class="numeric-step"
+        style="width: 6.5rem"
+      />
+      <div class="text-xs text-slate-500 mt-1">
+        Chỉ hiển thị cán bộ có C_LEVEL <= giá trị này khi phân công trực (số
+        càng lớn = cấp bậc càng thấp)
+      </div>
+      <div *ngIf="maxAssignableError" class="text-sm text-red-600 mt-1">
+        {{ maxAssignableError }}
+      </div>
+      <div class="mt-2">
+        <button (click)="saveMaxAssignable()" [disabled]="savingMaxAssignable">
+          <i *ngIf="savingMaxAssignable" class="pi pi-spin pi-spinner mr-2"></i>
+          Lưu ngưỡng C_LEVEL
+        </button>
+        <span
+          class="ml-3 text-sm text-green-700"
+          *ngIf="maxAssignableMessage"
+          >{{ maxAssignableMessage }}</span
+        >
+      </div>
+    </section>
+
     <form (ngSubmit)="save()">
       <div *ngFor="let config of configs()" class="config-row">
-        <ng-container *ngIf="config.key !== 'LeaderPositionLevelRange'">
+        <ng-container
+          *ngIf="
+            config.key !== 'LeaderPositionLevelRange' &&
+            config.key !== 'MaxAssignableCLevel'
+          "
+        >
           <label
             >{{ config.key }}
             <span *ngIf="config.description"

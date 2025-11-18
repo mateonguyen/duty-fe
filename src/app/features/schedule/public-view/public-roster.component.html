@@ -1,32 +1,152 @@
-<div class="p-4 space-y-3" *ngIf="roster(); else loadingTpl">
-  <div class="flex items-center justify-between">
-    <div>
-      <h2 class="text-lg font-semibold">{{ roster()!.name }}</h2>
-      <div class="text-sm text-slate-600">
-        {{ roster()!.scopeUnitName }} •
-        {{ roster()!.periodStart | date : "dd/MM/yyyy" }} -
-        {{ roster()!.periodEnd | date : "dd/MM/yyyy" }}
+<app-loading-spinner [isLoading]="loading()" />
+<p-toast></p-toast>
+
+<div class="roster-view-container" *ngIf="roster(); else loadingTpl">
+  <div class="roster-view-card">
+    <!-- Modern Header: 3-Line Structure -->
+    <div class="roster-view__header">
+      <div class="roster-view__header-left">
+        <div class="roster-title-block">
+          <!-- LINE 1: Roster Title -->
+          <h2 class="roster-view__title">
+            {{ roster()!.name }}
+          </h2>
+          <!-- LINE 2: Time Range -->
+          <div class="roster-view__meta">
+            <i class="pi pi-calendar"></i>
+            <span
+              >{{ roster()!.periodStart | date : "dd/MM/yyyy" }} –
+              {{ roster()!.periodEnd | date : "dd/MM/yyyy" }}</span
+            >
+          </div>
+          <!-- LINE 3: Unit Info -->
+          <div class="roster-view__pills">
+            <div class="pill pill-shift">
+              <i class="pi pi-building"></i>
+              <span
+                ><strong>{{ roster()!.scopeUnitName }}</strong></span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="roster-view__header-right">
+        <button
+          pButton
+          icon="pi pi-arrow-left"
+          class="p-button-sm p-button-outlined btn-exit"
+          label="Thoát"
+          (click)="goBack()"
+        ></button>
+        <button
+          pButton
+          icon="pi pi-eye"
+          class="p-button-sm p-button-outlined"
+          label="Giám sát kỳ lịch này"
+          pTooltip="Xem màn hình giám sát trực thời gian thực"
+          tooltipPosition="bottom"
+          (click)="goToMonitoring()"
+        ></button>
+        <div class="view-mode-group">
+          <button
+            pButton
+            icon="pi pi-calendar"
+            class="p-button-sm"
+            [class.p-button-outlined]="viewMode() !== 'calendar'"
+            (click)="viewMode.set('calendar')"
+          ></button>
+          <button
+            pButton
+            icon="pi pi-table"
+            class="p-button-sm"
+            [class.p-button-outlined]="viewMode() !== 'table'"
+            (click)="viewMode.set('table')"
+          ></button>
+        </div>
+        <button
+          *ngIf="canPublish()"
+          pButton
+          [icon]="isPublished() ? 'pi pi-check-circle' : 'pi pi-upload'"
+          [label]="publishButtonLabel()"
+          class="p-button-sm btn-publish"
+          [disabled]="publishButtonDisabled()"
+          [class.btn-published]="isPublished()"
+          (click)="handlePublish()"
+        ></button>
       </div>
     </div>
 
-    <p-dropdown
-      [options]="options()"
-      [ngModel]="selectedShiftId()"
-      (ngModelChange)="selectedShiftId.set($event)"
-      placeholder="Chọn ca trực"
-      [style]="{ width: '240px' }"
-    ></p-dropdown>
-  </div>
+    <!-- Filter Section with Location + Shift Tabs -->
+    <div class="roster-view__filters">
+      <div class="filter-row" *ngIf="enabledLocations().length > 0">
+        <div class="location-tabs-wrapper">
+          <button
+            *ngFor="let location of enabledLocations()"
+            pButton
+            type="button"
+            [class.p-button-outlined]="selectedLocationId() !== location.id"
+            (click)="selectedLocationId.set(location.id)"
+            class="location-tab-pill"
+          >
+            <i class="pi pi-map-marker"></i>
+            <span>{{ location.name }}</span>
+          </button>
+        </div>
+      </div>
+      <div
+        class="filter-row"
+        *ngIf="shifts().length > 0 && viewMode() === 'calendar'"
+      >
+        <div class="shift-tabs-wrapper">
+          <button
+            *ngFor="let shift of shifts()"
+            pButton
+            type="button"
+            [class.p-button-outlined]="selectedShiftId() !== shift.id"
+            (click)="selectedShiftId.set(shift.id)"
+            class="shift-tab-pill"
+          >
+            <div class="shift-tab-content">
+              <span class="shift-name">{{ shift.name }}</span>
+              <span class="shift-time" *ngIf="shift.timeRange">{{
+                shift.timeRange
+              }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <app-month-board
-    [from]="periodFrom()"
-    [to]="periodTo()"
-    [selectedShiftId]="selectedShiftId()"
-    [assignments]="assignments()"
-    [readOnly]="true"
-  />
+    <!-- Calendar view -->
+    <div class="roster-view__calendar" *ngIf="viewMode() === 'calendar'">
+      <app-month-board
+        [from]="periodFrom()"
+        [to]="periodTo()"
+        [selectedShiftId]="selectedShiftId()"
+        [selectedLocationId]="selectedLocationId()"
+        [assignments]="assignments()"
+        [readOnly]="true"
+      />
+    </div>
+
+    <!-- Table view -->
+    <div class="roster-view__table" *ngIf="viewMode() === 'table'">
+      <app-schedule-table-view
+        [from]="periodFrom()"
+        [to]="periodTo()"
+        [shifts]="shifts()"
+        [locations]="locations()"
+        [assignments]="assignments()"
+        [selectedLocationId]="selectedLocationId()"
+        [selectedShiftId]="selectedShiftId()"
+      />
+    </div>
+  </div>
 </div>
 
 <ng-template #loadingTpl>
-  <div class="p-8 text-center text-slate-600">Đang tải lịch trực...</div>
+  <div class="roster-view-loading">
+    <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    <p>Đang tải lịch trực...</p>
+  </div>
 </ng-template>

@@ -7,33 +7,58 @@ import {
   SimpleUser,
 } from '../schedule';
 import { StaffDataService } from './staff-data.service';
+import { DutyApiService } from '../../../core/api/duty-api.service';
 import { Observable, of } from 'rxjs';
-import { tap, catchError, mapTo } from 'rxjs/operators';
+import { tap, catchError, map } from 'rxjs/operators';
 
 // LƯU Ý: Không thay đổi model của bạn. Chỉ bổ sung hàm tiện ích.
 @Injectable({ providedIn: 'root' })
 export class ScheduleDemoService {
   private staffDataService = inject(StaffDataService);
+  private dutyApi = inject(DutyApiService);
 
-  // ---- mock danh mục shifts & locations (giữ lại cho đến khi có API backend) ----
-  shifts: Shift[] = [
-    { id: 1, code: 'SANG', name: 'Ca sáng', start: '07:30', end: '11:30' },
-    { id: 2, code: 'CHIEU', name: 'Ca chiều', start: '13:30', end: '17:30' },
-    { id: 3, code: 'DEM', name: 'Ca đêm', start: '20:00', end: '06:00' },
-  ];
+  // ---- shifts: now driven by backend by selected scope ----
+  // No demo defaults to avoid confusing UI before API load.
+  shifts: Shift[] = [];
 
-  locations: DutyLocation[] = [
-    { id: 1, name: 'Cục - Trực ban' },
-    { id: 2, name: 'Phòng 1 - Trực ban' },
-    { id: 3, name: 'Phòng 2 - Trực ban' },
-  ];
+  // ---- locations: load from backend API instead of static demo data ----
+  locations = signal<DutyLocation[]>([]);
 
   // ---- staff thật từ EOffice API (thay thế mock data) ----
   staffAll = signal<SimpleUser[]>([]);
 
   constructor() {
-    // Không load staff ở constructor nữa
-    // Sẽ load khi user chọn scopeType và unit
+    // Load locations from backend on init
+    this.loadLocations();
+  }
+
+  /** Load DutyLocations from backend API */
+  loadLocations(): void {
+    this.dutyApi
+      .getDutyLocations()
+      .pipe(
+        map((dtos) =>
+          dtos.map(
+            (dto) =>
+              ({
+                id: dto.id,
+                name: dto.name,
+              } as DutyLocation)
+          )
+        ),
+        catchError((err) => {
+          console.error('[ScheduleDemoService] Failed to load locations:', err);
+          // Return empty array on error
+          return of([]);
+        })
+      )
+      .subscribe((locations) => {
+        this.locations.set(locations);
+        console.log(
+          '[ScheduleDemoService] Loaded locations from API:',
+          locations
+        );
+      });
   }
 
   /** Reset toàn bộ state service về mặc định (dùng khi đổi user) */
@@ -81,7 +106,7 @@ export class ScheduleDemoService {
         },
       }),
       catchError(() => of([])),
-      mapTo(void 0)
+      map(() => void 0)
     );
   }
 
@@ -169,7 +194,10 @@ export class ScheduleDemoService {
       date: d,
       shiftId,
       userId: u.id,
+      username: u.username, // Store username for backend API
       userName: u.displayName,
+      orgUnitCode: u.orgUnitCode,
+      orgUnitName: u.orgUnitName,
       isLeader: !!u.isLeader,
       dutyRoleName: u.isLeader ? 'Chỉ huy' : 'Trực ban',
       phone: u.phone,

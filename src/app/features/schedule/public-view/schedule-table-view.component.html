@@ -1,0 +1,108 @@
+<div class="roster-table-wrapper">
+  <!-- Toolbar with axis toggle -->
+  <div class="table-toolbar">
+    <div class="table-toolbar__info">
+      <span class="toolbar-label">
+        {{
+          axisMode === "shift-columns"
+            ? "Hiển thị theo ca trực"
+            : "Hiển thị theo địa điểm"
+        }}
+      </span>
+      <span class="toolbar-count">({{ currentColumns.length }} cột)</span>
+    </div>
+    <button
+      pButton
+      type="button"
+      [icon]="getToggleButtonIcon()"
+      [label]="getToggleButtonLabel()"
+      class="p-button-sm p-button-outlined table-axis-toggle"
+      (click)="toggleAxisMode()"
+      pTooltip="Hoán đổi trục hiển thị giữa Ca trực và Địa điểm"
+      tooltipPosition="bottom"
+    ></button>
+  </div>
+
+  <div class="roster-table-scroll">
+    <!-- Sticky header -->
+    <div
+      class="roster-table-header"
+      [style.--column-count]="currentColumns.length"
+    >
+      <div class="roster-col-date header-cell">Ngày</div>
+      <div
+        class="roster-col-main header-cell"
+        *ngFor="let col of currentColumns"
+      >
+        <div class="col-header-name">{{ col.label }}</div>
+        <div class="col-header-sub" *ngIf="col.sublabel">
+          {{ col.sublabel }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Body rows -->
+    <div class="roster-table-body">
+      <div
+        class="roster-table-row"
+        *ngFor="let day of days; let i = index"
+        [style.--column-count]="currentColumns.length"
+        [class.even-row]="i % 2 === 1"
+      >
+        <div class="roster-col-date" [class.today-cell]="isToday(day)">
+          <div class="weekday">{{ getWeekday(day) }}</div>
+          <div class="date">{{ day | date : "dd.MM.yyyy" }}</div>
+        </div>
+
+        <div
+          class="roster-col-main assignment-cell"
+          *ngFor="let col of currentColumns"
+          [class.empty-cell]="getAssignmentsForCell(day, col.id).length === 0"
+        >
+          <div
+            class="assignment-chips"
+            *ngIf="getAssignmentsForCell(day, col.id) as items"
+          >
+            <div
+              *ngFor="let assignment of items"
+              class="assignment-chip"
+              [class.leader-chip]="assignment.isLeader"
+              [class.staff-chip]="!assignment.isLeader"
+              [title]="
+                assignment.userName +
+                (assignment.positionTitle
+                  ? ' - ' + assignment.positionTitle
+                  : '') +
+                (assignment.orgUnitName
+                  ? ' (' + assignment.orgUnitName + ')'
+                  : '')
+              "
+              (click)="showAssignmentDetails($event, assignment, op)"
+            >
+              <i *ngIf="assignment.isLeader" class="pi pi-star-fill"></i>
+              <span class="chip-name">{{ assignment.userName }}</span>
+              <span *ngIf="assignment.positionTitle" class="chip-position"
+                >({{ assignment.positionTitle }})</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p-overlayPanel #op [showCloseIcon]="true">
+      <ng-container *ngIf="selectedAssignment as a">
+        <div class="op-assignment">
+          <div class="op-name">{{ a.userName }}</div>
+          <div class="op-meta">
+            <span *ngIf="a.positionTitle">{{ a.positionTitle }}</span>
+            <span *ngIf="a.orgUnitName"> • {{ a.orgUnitName }}</span>
+            <span *ngIf="a.shiftName || a.shiftTimeRange">
+              • {{ getShiftLine(a) }}</span
+            >
+          </div>
+        </div>
+      </ng-container>
+    </p-overlayPanel>
+  </div>
+</div>

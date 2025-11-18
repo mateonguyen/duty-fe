@@ -1,0 +1,130 @@
+<div class="location-tabs-container">
+  <!-- Empty state -->
+  <div *ngIf="enabledLocations().length === 0" class="empty-state">
+    <i class="pi pi-map-marker text-slate-400"></i>
+    <span>Chưa chọn địa điểm trực cho kỳ lịch này.</span>
+    <button
+      pButton
+      type="button"
+      class="p-button-text p-button-sm"
+      label="Cấu hình"
+      icon="pi pi-cog"
+      (click)="openManageDialog()"
+    ></button>
+  </div>
+
+  <!-- Location tabs with manage button -->
+  <div *ngIf="enabledLocations().length > 0" class="location-tabs-scroll">
+    <div class="location-tabs-header mr-2">
+      <span class="location-tabs-label">Địa điểm:</span>
+      <button
+        pButton
+        type="button"
+        class="btn-manage-locations"
+        icon="pi pi-cog"
+        pTooltip="Chọn địa điểm hiển thị"
+        tooltipPosition="bottom"
+        (click)="openManageDialog()"
+      ></button>
+    </div>
+
+    <div class="location-tabs-list">
+      <button
+        *ngFor="let location of enabledLocations(); trackBy: trackByLocationId"
+        pButton
+        type="button"
+        [class.p-button-outlined]="selectedLocationId !== location.id"
+        [pTooltip]="location.name"
+        tooltipPosition="bottom"
+        (click)="selectLocation(location)"
+        class="location-tab-btn"
+      >
+        <i class="pi pi-map-marker"></i>
+        <span>{{ location.name }}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Locations Dialog -->
+<p-dialog
+  [(visible)]="manageDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '480px' }"
+  [breakpoints]="{ '960px': '90vw', '640px': '96vw' }"
+  header="Chọn địa điểm tham gia kỳ lịch"
+>
+  <div class="space-y-3">
+    <div class="flex justify-between items-center pb-2 border-b">
+      <span class="text-sm text-slate-600">
+        Chọn các địa điểm sẽ hiển thị trong kỳ lịch trực này
+      </span>
+      <div class="flex gap-2">
+        <button
+          pButton
+          type="button"
+          class="p-button-text p-button-sm"
+          label="Chọn hết"
+          (click)="selectAllLocations()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          class="p-button-text p-button-sm"
+          label="Bỏ hết"
+          (click)="clearAllLocations()"
+        ></button>
+      </div>
+    </div>
+
+    <div class="max-h-80 overflow-auto space-y-1">
+      <div
+        *ngFor="let loc of allLocations; trackBy: trackByLocationId"
+        class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 transition-colors"
+      >
+        <p-checkbox
+          [binary]="true"
+          [ngModel]="isLocationEnabled(loc.id)"
+          (ngModelChange)="toggleLocationConfig(loc.id, $event)"
+          [inputId]="'loc-' + loc.id"
+        ></p-checkbox>
+        <label
+          [for]="'loc-' + loc.id"
+          class="flex items-center gap-2 cursor-pointer flex-1"
+        >
+          <i class="pi pi-map-marker text-sm" [style.color]="'#0a8f4b'"></i>
+          <span class="font-medium text-slate-800">{{ loc.name }}</span>
+        </label>
+      </div>
+
+      <div
+        *ngIf="allLocations.length === 0"
+        class="text-center py-8 text-slate-400"
+      >
+        <i class="pi pi-inbox text-3xl mb-2"></i>
+        <p class="text-sm">Chưa có địa điểm nào trong phạm vi này</p>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 pt-3 border-t">
+      <button
+        pButton
+        type="button"
+        class="p-button-text"
+        label="Hủy"
+        (click)="cancelManageDialog()"
+      ></button>
+      <button
+        pButton
+        type="button"
+        label="Áp dụng"
+        icon="pi pi-check"
+        (click)="applyLocationConfig()"
+        [style.background]="'#0a8f4b'"
+        [style.borderColor]="'#0a8f4b'"
+      ></button>
+    </div>
+  </div>
+</p-dialog>

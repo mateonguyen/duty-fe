@@ -1,0 +1,262 @@
+<div class="monitor">
+  <!-- Modern Monitoring Toolbar -->
+  <div class="monitor-toolbar">
+    <div class="monitor-toolbar__left">
+      <div class="monitor-toolbar__title">
+        <i class="pi pi-eye"></i>
+        <span>Giám sát trực</span>
+      </div>
+
+      <!-- Time Display with Icon -->
+      <div class="time-display" [class.time-display--live]="isLiveMode()">
+        <i class="pi pi-clock"></i>
+        <span class="time-display__label">{{
+          isLiveMode() ? "Bây giờ" : "Xem tại"
+        }}</span>
+        <span class="time-display__value">{{ formattedTime() }}</span>
+      </div>
+    </div>
+
+    <div class="monitor-toolbar__right">
+      <!-- Live Mode Toggle -->
+      <label class="toggle-switch">
+        <input
+          type="checkbox"
+          [checked]="isLiveMode()"
+          (change)="toggleLiveMode()"
+        />
+        <span class="toggle-switch__slider"></span>
+        <span class="toggle-switch__label">{{
+          isLiveMode() ? "Hiện tại" : "Tùy chọn"
+        }}</span>
+      </label>
+
+      <!-- Custom Time Picker -->
+      <div class="time-picker" *ngIf="!isLiveMode()" [@fadeInOut]>
+        <input
+          type="datetime-local"
+          [(ngModel)]="selectedTime"
+          (change)="onTimeChange()"
+        />
+      </div>
+
+      <!-- Unit Multi-Select -->
+      <div class="unit-filter">
+        <p-multiSelect
+          [options]="scopes()"
+          [(ngModel)]="selectedUnits"
+          optionLabel="displayName"
+          optionValue="orgId"
+          placeholder="Tất cả đơn vị"
+          [showToggleAll]="true"
+          [filter]="true"
+          filterPlaceholder="Tìm kiếm..."
+          (onChange)="load()"
+          [maxSelectedLabels]="2"
+          selectedItemsLabel="{0} đơn vị"
+          display="chip"
+        />
+      </div>
+
+      <!-- Refresh Button with Countdown -->
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="manualRefresh()"
+        [disabled]="loading()"
+        [pTooltip]="
+          isLiveMode() ? 'Làm mới sau ' + countdown() + 's' : 'Làm mới'
+        "
+        tooltipPosition="bottom"
+      >
+        <i class="pi pi-sync" [class.pi-spin]="loading()"></i>
+        <span *ngIf="isLiveMode()" class="refresh-btn__countdown"
+          >{{ countdown() }}s</span
+        >
+      </button>
+    </div>
+  </div>
+
+  <!-- Skeleton Loader -->
+  <div *ngIf="showSkeleton()" class="monitor__skeleton">
+    <div class="skeleton-unit" *ngFor="let i of [1, 2, 3]">
+      <p-skeleton width="100%" height="60px" styleClass="mb-3"></p-skeleton>
+      <div class="skeleton-grid">
+        <div *ngFor="let j of [1, 2, 3]">
+          <p-skeleton width="100%" height="200px"></p-skeleton>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div
+    *ngIf="!showSkeleton() && !loading() && filteredUnits().length === 0"
+    class="monitor__empty"
+  >
+    <div class="empty-state">
+      <div class="empty-state__icon-wrapper">
+        <i class="pi pi-box empty-state__icon"></i>
+      </div>
+      <h3 class="empty-state__title">Không có ai đang trực</h3>
+      <p class="empty-state__message">
+        Không tìm thấy cán bộ nào đang trực tại thời điểm này.
+      </p>
+      <div class="empty-state__suggestions">
+        <div class="suggestion-item">
+          <i class="pi pi-clock"></i>
+          <span>Chọn thời điểm khác</span>
+        </div>
+        <div class="suggestion-item">
+          <i class="pi pi-building"></i>
+          <span>Chọn đơn vị khác hoặc xem tất cả</span>
+        </div>
+        <div class="suggestion-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Kiểm tra lịch đã công bố chưa</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content: Premium Card Grid -->
+  <div
+    *ngIf="!showSkeleton() && !loading() && filteredUnits().length > 0"
+    class="monitor-content"
+    [@fadeInOut]
+  >
+    <!-- Unit Cards -->
+    <div *ngFor="let unit of filteredUnits()" class="unit-section">
+      <!-- Unit Header -->
+      <div class="unit-header">
+        <div class="unit-header__left">
+          <i class="pi pi-building"></i>
+          <h2>{{ unit.unitName }}</h2>
+          <span class="unit-code">{{ unit.unitCode }}</span>
+        </div>
+        <button
+          type="button"
+          class="collapse-btn"
+          (click)="toggleUnit(unit.unitCode)"
+        >
+          <i
+            class="pi"
+            [class.pi-chevron-up]="!isUnitCollapsed(unit.unitCode)"
+            [class.pi-chevron-down]="isUnitCollapsed(unit.unitCode)"
+          ></i>
+        </button>
+      </div>
+
+      <!-- Locations Grid (Responsive 1-2-3 columns) -->
+      <div class="locations-grid" *ngIf="!isUnitCollapsed(unit.unitCode)">
+        <!-- Empty state for unit -->
+        <div *ngIf="unit.locations.length === 0" class="empty-card">
+          <i class="pi pi-map-marker"></i>
+          <p>Đơn vị này chưa có địa điểm trực</p>
+        </div>
+
+        <!-- Location Cards -->
+        <div *ngFor="let location of unit.locations" class="location-card">
+          <!-- Location Header with Status -->
+          <div class="location-card__header">
+            <div class="location-card__title">
+              <i class="pi pi-map-marker"></i>
+              <span>{{ location.locationName }}</span>
+            </div>
+            <div class="location-card__status">
+              <ng-container *ngIf="getLocationStatus(location) as status">
+                <span class="status-badge" [attr.data-status]="status.status">
+                  {{ status.icon }} {{ status.label }}
+                </span>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Location Body -->
+          <div class="location-card__body">
+            <ng-container *ngIf="getLocationStaff(location) as staffData">
+              <!-- Empty State -->
+              <div
+                *ngIf="
+                  staffData.leaders.length === 0 && staffData.staff.length === 0
+                "
+                class="empty-placeholder"
+              >
+                <i class="pi pi-user-minus"></i>
+                <span>Không có ai trực tại thời điểm này</span>
+              </div>
+
+              <!-- Leaders Section -->
+              <div
+                class="staff-section staff-section--leaders"
+                *ngIf="staffData.leaders.length > 0"
+              >
+                <div class="staff-section__header">
+                  <i class="pi pi-star-fill"></i>
+                  <span>Chỉ huy trực</span>
+                </div>
+                <div class="staff-list">
+                  <div
+                    *ngFor="let leader of staffData.leaders"
+                    class="staff-card staff-card--leader"
+                  >
+                    <div class="staff-card__avatar staff-card__avatar--leader">
+                      {{ getInitials(leader.staffDisplayName) }}
+                    </div>
+                    <div class="staff-card__info">
+                      <div class="staff-card__name">
+                        {{ leader.staffDisplayName }}
+                      </div>
+                      <div class="staff-card__meta">
+                        <span *ngIf="leader.positionTitle">{{
+                          leader.positionTitle
+                        }}</span>
+                        <span *ngIf="leader.roleName" class="role-tag">{{
+                          leader.roleName
+                        }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Staff Section -->
+              <div
+                class="staff-section staff-section--staff"
+                *ngIf="staffData.staff.length > 0"
+              >
+                <div class="staff-section__header">
+                  <i class="pi pi-users"></i>
+                  <span>Cán bộ trực</span>
+                </div>
+                <div class="staff-list">
+                  <div
+                    *ngFor="let member of staffData.staff"
+                    class="staff-card"
+                  >
+                    <div class="staff-card__avatar">
+                      {{ getInitials(member.staffDisplayName) }}
+                    </div>
+                    <div class="staff-card__info">
+                      <div class="staff-card__name">
+                        {{ member.staffDisplayName }}
+                      </div>
+                      <div class="staff-card__meta">
+                        <span *ngIf="member.positionTitle">{{
+                          member.positionTitle
+                        }}</span>
+                        <span *ngIf="member.roleName" class="role-tag">{{
+                          member.roleName
+                        }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

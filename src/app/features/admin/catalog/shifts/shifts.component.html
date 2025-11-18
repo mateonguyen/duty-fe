@@ -1,15 +1,19 @@
 <p-toast></p-toast>
 <div class="flex items-center justify-between mb-3">
-  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
-    <i class="pi pi-clock text-blue-600"></i>
-    Ca trực
-  </h3>
+  <!-- LEFT SIDE: title + scope-picker -->
   <div class="flex items-center gap-3">
+    <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+      <i class="pi pi-clock text-blue-600"></i>
+      Ca trực
+    </h3>
     <app-scope-picker
+      class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
       [scopes]="scopes"
       [selected]="activeScope"
       (selectedChange)="onScopeSelected($event)"
     ></app-scope-picker>
+  </div>
+  <div class="flex items-center gap-3">
     <button
       *hasPermission="'catalog.edit'"
       pButton
@@ -32,6 +36,9 @@
   [paginatorDropdownAppendTo]="'body'"
   [dataKey]="'id'"
   [(selection)]="selected"
+  [loading]="loading"
+  [sortField]="'displayOrder'"
+  [sortOrder]="1"
   #dt
 >
   <ng-template pTemplate="caption">
@@ -79,25 +86,29 @@
         <p-tableHeaderCheckbox />
       </th>
       <th style="width: 70px" class="text-center font-bold">STT</th>
-      <th pSortableColumn="code" class="font-bold" style="width: 120px">
+
+      <th pSortableColumn="code" class="font-bold" style="width: 250px">
         Mã <p-sortIcon field="code" />
       </th>
-      <th pSortableColumn="name" class="font-bold">
+      <th pSortableColumn="name" class="font-bold" style="min-width: 160px">
         Tên <p-sortIcon field="name" />
       </th>
-      <th class="text-center font-bold" style="width: 120px">Giờ bắt đầu</th>
-      <th class="text-center font-bold" style="width: 120px">Giờ kết thúc</th>
-      <th pSortableColumn="scopeUnitId" class="text-center font-bold">
-        Đơn vị <p-sortIcon field="scopeUnitId" />
-      </th>
+      <th class="text-center font-bold" style="width: 140px">Thời gian</th>
       <th
         pSortableColumn="active"
         class="text-center font-bold"
-        style="width: 140px"
+        style="width: 120px"
       >
         Trạng thái <p-sortIcon field="active" />
       </th>
-      <th class="text-center font-bold" style="width: 140px"></th>
+      <th
+        pSortableColumn="displayOrder"
+        class="text-center font-bold"
+        style="width: 160px"
+      >
+        Thứ tự <p-sortIcon field="displayOrder" />
+      </th>
+      <th class="text-center font-bold" style="width: 120px"></th>
     </tr>
   </ng-template>
 
@@ -107,43 +118,84 @@
         <p-tableCheckbox [value]="r" />
       </td>
       <td class="text-center">{{ dt.first + rowIndex + 1 }}</td>
-      <td class="font-mono text-slate-600">{{ r.code }}</td>
-      <td>{{ r.name }}</td>
-      <td class="text-center">{{ r.startTime | slice : 0 : 5 }}</td>
-      <td class="text-center">{{ r.endTime | slice : 0 : 5 }}</td>
-      <td class="text-center">{{ r.scopeUnitId || "GLOBAL" }}</td>
-      <td class="text-center">
+      <td class="font-mono text-slate-600">
+        <span [pTooltip]="r.code" tooltipPosition="top">{{ r.code }}</span>
+      </td>
+      <td class="truncate">
+        <span [pTooltip]="r.name" tooltipPosition="top">{{ r.name }}</span>
+      </td>
+      <td class="text-center font-mono text-sm">
         <span
-          *ngIf="r.active"
-          class="inline-flex items-center gap-1 text-green-600 text-xs font-medium bg-green-50 rounded px-2 py-0.5"
+          [pTooltip]="
+            (r.startTime | slice : 0 : 5) + ' – ' + (r.endTime | slice : 0 : 5)
+          "
+          tooltipPosition="top"
         >
-          <i class="pi pi-check-circle"></i> Kích hoạt
-        </span>
-        <span
-          *ngIf="!r.active"
-          class="inline-flex items-center gap-1 text-red-500 text-xs font-medium bg-red-50 rounded px-2 py-0.5"
-        >
-          <i class="pi pi-times-circle"></i> Ngừng
+          {{ r.startTime | slice : 0 : 5 }} – {{ r.endTime | slice : 0 : 5 }}
         </span>
       </td>
       <td class="text-center">
-        <button
-          *hasPermission="'catalog.edit'"
-          pButton
-          icon="pi pi-pencil"
-          class="p-button-text p-button-sm text-blue-600"
-          (click)="edit(r)"
-          pTooltip="Sửa"
-        ></button>
-        <button
-          *hasPermission="'catalog.delete'"
-          pButton
-          class="p-button-text p-button-sm"
-          (click)="remove(r)"
-          pTooltip="Xóa"
+        <span
+          *ngIf="r.active"
+          class="inline-flex items-center gap-1 text-green-700 text-xs font-semibold bg-green-50 rounded px-2 py-0.5"
         >
-          <i class="pi pi-trash text-red-600"></i>
-        </button>
+          <i class="pi pi-circle-fill" style="font-size: 8px"></i> Kích hoạt
+        </span>
+        <span
+          *ngIf="!r.active"
+          class="inline-flex items-center gap-1 text-gray-400 text-xs font-semibold bg-gray-100 rounded px-2 py-0.5"
+        >
+          <i class="pi pi-circle" style="font-size: 8px"></i> Ngừng
+        </span>
+      </td>
+      <td class="text-center">
+        <div class="flex items-center gap-1 justify-center">
+          <button
+            pButton
+            icon="pi pi-angle-up"
+            class="p-button-text p-button-sm"
+            (click)="moveDisplayOrder(r, -1)"
+            [disabled]="isFirstRow(r)"
+            pTooltip="Di chuyển lên"
+          ></button>
+          <button
+            pButton
+            icon="pi pi-angle-down"
+            class="p-button-text p-button-sm"
+            (click)="moveDisplayOrder(r, 1)"
+            [disabled]="isLastRow(r)"
+            pTooltip="Di chuyển xuống"
+          ></button>
+          <input
+            pInputText
+            type="number"
+            min="0"
+            style="width: 56px; text-align: center"
+            [ngModel]="r.displayOrder"
+            (ngModelChange)="r.displayOrder = $event"
+            (blur)="onDisplayOrderBlur(r)"
+          />
+        </div>
+      </td>
+      <td class="text-center">
+        <div class="flex items-center gap-1 justify-center">
+          <button
+            *hasPermission="'catalog.edit'"
+            pButton
+            icon="pi pi-pencil"
+            class="p-button-text p-button-sm text-blue-600"
+            (click)="edit(r)"
+            pTooltip="Sửa"
+          ></button>
+          <button
+            *hasPermission="'catalog.delete'"
+            pButton
+            icon="pi pi-trash"
+            class="p-button-text p-button-sm text-red-600"
+            (click)="remove(r)"
+            pTooltip="Xóa"
+          ></button>
+        </div>
       </td>
     </tr>
   </ng-template>
@@ -152,32 +204,171 @@
 <p-dialog
   [(visible)]="visible"
   [modal]="true"
-  [style]="{ width: '520px' }"
-  header="{{ editId ? 'Sửa' : 'Thêm' }} ca trực"
+  [style]="{ width: '600px' }"
+  [header]="editId ? 'SỬA CA TRỰC' : 'THÊM CA TRỰC MỚI'"
+  [draggable]="false"
+  [resizable]="false"
 >
-  <div class="grid grid-cols-2 gap-3">
-    <div><label>Code</label><input pInputText [(ngModel)]="form.code" /></div>
-    <div><label>Tên</label><input pInputText [(ngModel)]="form.name" /></div>
-    <div>
-      <label>Start</label
-      ><input pInputText [(ngModel)]="form.startTime" placeholder="HH:mm" />
+  <div class="flex flex-col gap-4">
+    <!-- 1. Đơn vị / Phạm vi (Read-only) -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">
+        Đơn vị / Phạm vi
+        <span class="text-red-500">*</span>
+      </label>
+      <input
+        pInputText
+        [value]="scopeUnitName"
+        readonly
+        class="bg-slate-50 cursor-not-allowed"
+        placeholder="Đơn vị áp dụng"
+      />
+      <small class="text-slate-500">
+        Ca trực này áp dụng cho đơn vị: <b>{{ scopeUnitName }}</b>
+      </small>
     </div>
-    <div>
-      <label>End</label
-      ><input pInputText [(ngModel)]="form.endTime" placeholder="HH:mm" />
+
+    <!-- 2. Mã ca trực (Read-only, auto-generated) -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">
+        Mã ca trực
+        <span class="text-red-500">*</span>
+      </label>
+      <input
+        pInputText
+        [(ngModel)]="form.code"
+        readonly
+        class="bg-slate-50 cursor-not-allowed font-mono text-sm"
+        placeholder="Tự động tạo từ tên ca trực"
+      />
+      <small class="text-slate-500" *ngIf="!editId">
+        Mã sẽ được tự động tạo theo định dạng:
+        <code class="bg-slate-100 px-1 rounded">[MÃ_ĐƠN_VỊ]_[TÊN_CA]</code>
+      </small>
+      <small class="text-red-500" *ngIf="validationErrors.code">
+        {{ validationErrors.code }}
+      </small>
     </div>
-    <div class="col-span-2 flex items-center gap-2">
-      <p-inputSwitch [(ngModel)]="form.active"></p-inputSwitch
-      ><span>Kích hoạt</span>
+
+    <!-- 3. Tên ca trực -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">
+        Tên ca trực
+        <span class="text-red-500">*</span>
+      </label>
+      <input
+        pInputText
+        [(ngModel)]="form.name"
+        placeholder="VD: Ca Sáng, Ca Chiều, Ca Đêm..."
+        [class.border-red-500]="validationErrors.name"
+        autofocus
+      />
+      <small class="text-slate-500">
+        Tên sẽ được tự động viết hoa chữ cái đầu mỗi từ khi lưu
+      </small>
+      <small class="text-red-500" *ngIf="validationErrors.name">
+        {{ validationErrors.name }}
+      </small>
+    </div>
+
+    <!-- 4 & 5. Giờ bắt đầu và Giờ kết thúc (Time Pickers) -->
+    <div class="grid grid-cols-2 gap-4">
+      <!-- Giờ bắt đầu -->
+      <div class="flex flex-col gap-2">
+        <label class="font-semibold text-sm text-slate-700">
+          Giờ bắt đầu
+          <span class="text-red-500">*</span>
+        </label>
+        <p-calendar
+          [(ngModel)]="startTimeDate"
+          [timeOnly]="true"
+          [showIcon]="true"
+          hourFormat="24"
+          [stepMinute]="15"
+          placeholder="Chọn giờ"
+          iconDisplay="input"
+          [class.border-red-500]="validationErrors.startTime"
+        ></p-calendar>
+        <small class="text-red-500" *ngIf="validationErrors.startTime">
+          {{ validationErrors.startTime }}
+        </small>
+      </div>
+
+      <!-- Giờ kết thúc -->
+      <div class="flex flex-col gap-2">
+        <label class="font-semibold text-sm text-slate-700">
+          Giờ kết thúc
+          <span class="text-red-500">*</span>
+        </label>
+        <p-calendar
+          [(ngModel)]="endTimeDate"
+          [timeOnly]="true"
+          [showIcon]="true"
+          hourFormat="24"
+          [stepMinute]="15"
+          placeholder="Chọn giờ"
+          iconDisplay="input"
+          [class.border-red-500]="validationErrors.endTime"
+        ></p-calendar>
+        <small class="text-red-500" *ngIf="validationErrors.endTime">
+          {{ validationErrors.endTime }}
+        </small>
+      </div>
+    </div>
+
+    <small class="text-slate-500 -mt-2">
+      <i class="pi pi-info-circle"></i>
+      Hỗ trợ ca qua đêm (VD: 20:00 - 06:00)
+    </small>
+
+    <!-- 6. Thứ tự hiển thị -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">
+        Thứ tự hiển thị
+      </label>
+      <p-inputNumber
+        [(ngModel)]="form.displayOrder"
+        [min]="0"
+        [showButtons]="true"
+        buttonLayout="horizontal"
+        incrementButtonIcon="pi pi-plus"
+        decrementButtonIcon="pi pi-minus"
+        placeholder="VD: 1, 2, 3..."
+        [step]="1"
+      ></p-inputNumber>
+      <small class="text-slate-500">
+        Số thứ tự nhỏ hơn sẽ hiển thị trước (1 → 2 → 3...)
+      </small>
+    </div>
+
+    <!-- 7. Kích hoạt -->
+    <div class="flex items-center gap-3 p-3 bg-slate-50 rounded">
+      <p-inputSwitch [(ngModel)]="form.active"></p-inputSwitch>
+      <div class="flex flex-col">
+        <span class="font-semibold text-sm">Kích hoạt ca trực</span>
+        <small class="text-slate-600">
+          Ca trực sẽ {{ form.active ? "hiển thị" : "bị ẩn" }} trong danh sách
+          phân công
+        </small>
+      </div>
     </div>
   </div>
+
   <ng-template pTemplate="footer">
-    <button
-      pButton
-      label="Hủy"
-      class="p-button-text"
-      (click)="visible = false"
-    ></button>
-    <p-button label="Lưu" size="small" (click)="save()"></p-button>
+    <div class="flex justify-between items-center w-full">
+      <button
+        pButton
+        label="Hủy"
+        icon="pi pi-times"
+        class="p-button-text p-button-secondary"
+        (click)="visible = false"
+      ></button>
+      <button
+        pButton
+        [label]="editId ? 'Cập nhật' : 'Tạo mới'"
+        icon="pi pi-check"
+        (click)="save()"
+      ></button>
+    </div>
   </ng-template>
 </p-dialog>

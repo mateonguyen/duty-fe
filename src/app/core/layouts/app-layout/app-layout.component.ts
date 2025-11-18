@@ -133,10 +133,10 @@ export class AppLayoutComponent {
         },
         { separator: true },
         {
-          label: 'Xem lịch công khai',
-          routerLink: '/schedule/public',
+          label: 'Giám sát trực',
+          routerLink: '/schedule/monitoring',
           icon: 'pi pi-eye',
-          permission: 'roster.create',
+          permission: 'roster.view',
         },
       ],
     },

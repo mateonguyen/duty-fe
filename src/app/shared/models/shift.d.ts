@@ -4,7 +4,9 @@ export interface ShiftReadDto {
   name: string;
   startTime: string; // "HH:mm:ss"
   endTime: string;
-  scopeUnitId?: number | null;
+  displayOrder: number;
+  scopeCode?: string | null;
+  scopeUnitName?: string | null;
   active: boolean;
 }
 

@@ -18,8 +18,16 @@ export class DutyApiService {
   constructor(private http: HttpClient) {}
 
   // Duty Locations
-  getDutyLocations() {
-    return this.http.get<DutyLocationReadDto[]>(`${this.base}/dutylocations`);
+  /**
+   * Load duty locations, optionally filtered by scope code.
+   * When scopeCode is provided and includeGlobal=true (default), returns records with matching scopeCode plus global (null) ones.
+   */
+  getDutyLocations(scopeCode?: string | null, includeGlobal = true) {
+    const params: any = { includeGlobal: includeGlobal.toString() };
+    if (scopeCode) params.scopeCode = scopeCode;
+    return this.http.get<DutyLocationReadDto[]>(`${this.base}/dutylocations`, {
+      params,
+    });
   }
   createDutyLocation(dto: DutyLocationWriteDto) {
     return this.http.post<DutyLocationReadDto>(
@@ -42,6 +50,21 @@ export class DutyApiService {
     return this.http.get<ShiftReadDto[]>(`${this.base}/shifts`);
   }
   /**
+   * Load shifts for a specific scope code (from AdOrganize) including global shifts by default.
+   * @param scopeCode Organization unit code string (e.g., "G01.705.000.002"). If null/empty, returns only global shifts.
+   * @param includeGlobal Whether to include global (scopeCode == null) shifts. Default true.
+   */
+  getShiftsByScope(scopeCode: string | null, includeGlobal = false) {
+    const params: any = { includeGlobal: includeGlobal.toString() };
+    if (scopeCode) {
+      params.scopeCode = scopeCode;
+    }
+    return this.http.get<ShiftReadDto[]>(`${this.base}/shifts/by-scope`, {
+      params,
+    });
+  }
+  /**
+   * @deprecated Use getShiftsByScope instead. This method will be removed in future versions.
    * Load shifts for a specific organizational unit (scope) including global shifts by default.
    * @param unitId Org unit numeric id or string convertible to number.
    * @param includeGlobal Whether to include global (scopeUnitId == null) shifts. Default true.

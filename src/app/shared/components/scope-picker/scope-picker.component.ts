@@ -9,8 +9,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { DropdownModule } from 'primeng/dropdown';
 import { FormsModule } from '@angular/forms';
-import { ScopeRef } from '../../../../core/services/scope.service';
 import { Output, EventEmitter } from '@angular/core';
+import { ScopeRef } from '../../../core/services/scope.service';
 
 @Component({
   selector: 'app-scope-picker',

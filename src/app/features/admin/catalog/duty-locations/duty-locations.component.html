@@ -2,17 +2,29 @@
 <p-confirmDialog></p-confirmDialog>
 
 <div class="flex items-center justify-between mb-3">
-  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
-    <i class="pi pi-map-marker text-blue-600"></i>
-    Địa điểm trực
-  </h3>
-  <button
-    *hasPermission="'catalog.edit'"
-    pButton
-    label="Thêm"
-    icon="pi pi-plus"
-    (click)="add()"
-  ></button>
+  <!-- LEFT SIDE: title + scope-picker -->
+  <div class="flex items-center gap-3">
+    <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+      <i class="pi pi-map-marker text-blue-600"></i>
+      Địa điểm trực
+    </h3>
+    <app-scope-picker
+      class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
+      [scopes]="scopes"
+      [selected]="activeScope"
+      (selectedChange)="onScopeSelected($event)"
+      [placeholder]="'Phạm vi áp dụng'"
+    />
+  </div>
+  <div class="flex items-center gap-2">
+    <button
+      *hasPermission="'catalog.edit'"
+      pButton
+      label="Thêm"
+      icon="pi pi-plus"
+      (click)="add()"
+    ></button>
+  </div>
 </div>
 
 <p-table
@@ -23,7 +35,7 @@
   [rowsPerPageOptions]="[10, 25, 50]"
   [showCurrentPageReport]="true"
   currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
-  [globalFilterFields]="['code', 'name']"
+  [globalFilterFields]="['code', 'name', 'address']"
   styleClass="catalog-table"
   [paginatorDropdownAppendTo]="'body'"
   [dataKey]="'id'"
@@ -81,21 +93,36 @@
       <th pSortableColumn="name" class="font-bold">
         Tên <p-sortIcon field="name" />
       </th>
+      <th pSortableColumn="address" class="font-bold">
+        Địa chỉ <p-sortIcon field="address" />
+      </th>
+      <th class="font-bold">Phạm vi</th>
       <th pSortableColumn="active" class="text-center font-bold">
         Trạng thái <p-sortIcon field="active" />
+      </th>
+      <th pSortableColumn="displayOrder" class="font-bold" style="width: 110px">
+        Sắp xếp <p-sortIcon field="displayOrder" />
       </th>
       <th class="text-center font-bold" style="width: 140px"></th>
     </tr>
   </ng-template>
 
   <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
-    <tr>
+    <tr
+      [ngClass]="{ 'bg-[#E8F7EE] transition-colors': r.id === highlightedId }"
+    >
       <td class="text-center">
         <p-tableCheckbox [value]="r" />
       </td>
       <td class="text-center">{{ dt.first + rowIndex + 1 }}</td>
       <td class="font-mono text-slate-600">{{ r.code }}</td>
       <td>{{ r.name }}</td>
+      <td>
+        <span class="text-slate-600">{{ r.address }}</span>
+      </td>
+      <td>
+        <span>{{ scopeDisplayNameFor(r.scopeCode) }}</span>
+      </td>
       <td class="text-center">
         <span
           *ngIf="r.active"
@@ -109,6 +136,41 @@
         >
           <i class="pi pi-times-circle"></i> Ngừng
         </span>
+      </td>
+      <td class="text-center">
+        <div class="flex items-center gap-1 justify-center">
+          <button
+            pButton
+            icon="pi pi-angle-up"
+            class="p-button-text p-button-sm"
+            (click)="moveDisplayOrder(r, -1)"
+            [disabled]="isFirstRow(r)"
+            pTooltip="Di chuyển lên"
+            *hasPermission="'catalog.edit'"
+          ></button>
+          <button
+            pButton
+            icon="pi pi-angle-down"
+            class="p-button-text p-button-sm"
+            (click)="moveDisplayOrder(r, 1)"
+            [disabled]="isLastRow(r)"
+            pTooltip="Di chuyển xuống"
+            *hasPermission="'catalog.edit'"
+          ></button>
+          <input
+            pInputText
+            type="number"
+            min="0"
+            style="width: 56px; text-align: center"
+            [ngModel]="r.displayOrder"
+            (ngModelChange)="r.displayOrder = $event"
+            (blur)="onDisplayOrderBlur(r)"
+            *hasPermission="'catalog.edit'"
+          />
+          <span *ngIf="!(r.displayOrder >= 0)" class="text-xs text-red-500"
+            >!</span
+          >
+        </div>
       </td>
       <td class="text-center">
         <button
@@ -133,61 +195,153 @@
   </ng-template>
 </p-table>
 
-<!-- DIALOG CREATE/EDIT -->
+<div class="mt-2 text-xs text-slate-500 italic">
+  Số thứ tự nhỏ hơn sẽ hiển thị trước (1 → 2 → 3…)
+</div>
+
+<!-- NEW REACTIVE DIALOG -->
 <p-dialog
-  [(visible)]="dlgOpen"
+  [(visible)]="visible"
   [modal]="true"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: '420px' }"
-  [breakpoints]="{ '960px': '90vw', '640px': '96vw' }"
+  [style]="{ width: '720px' }"
   [dismissableMask]="false"
   [closeOnEscape]="false"
-  [header]="dlgTitle"
+  [header]="dialogHeader"
 >
-  <form #f="ngForm" (ngSubmit)="save(f)" class="space-y-3">
-    <div class="flex flex-col gap-1">
-      <label class="font-medium">Mã</label>
-      <input
-        pInputText
-        [(ngModel)]="form.code"
-        name="code"
-        required
-        minlength="2"
-        maxlength="50"
-      />
-    </div>
-    <div class="flex flex-col gap-1">
-      <label class="font-medium">Tên</label>
-      <input
-        pInputText
-        [(ngModel)]="form.name"
-        name="name"
-        required
-        minlength="2"
-        maxlength="200"
-      />
-    </div>
-    <div class="flex items-center gap-2">
-      <p-inputSwitch [(ngModel)]="form.active" name="active"></p-inputSwitch>
-      <span>Kích hoạt</span>
+  <form [formGroup]="fg" (ngSubmit)="save()" class="flex flex-col gap-5">
+    <!-- Row 1: Scope / Phạm vi -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700"
+        >Đơn vị / Phạm vi <span class="text-red-500">*</span></label
+      >
+      <app-scope-picker
+        [scopes]="scopes"
+        [selected]="dialogSelectedScope"
+        (selectedChange)="onDialogScopeChanged($event)"
+        class="w-full"
+      ></app-scope-picker>
+      <small class="text-slate-500"
+        >Chọn phạm vi áp dụng cho địa điểm trực.</small
+      >
+      <small class="text-red-500" *ngIf="validationErrors.scopeCode">{{
+        validationErrors.scopeCode
+      }}</small>
     </div>
 
-    <div class="flex justify-end gap-2 pt-2">
+    <!-- Row 2: Mã địa điểm (readonly) -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">Mã địa điểm</label>
+      <input
+        pInputText
+        formControlName="code"
+        readonly
+        class="bg-slate-50 cursor-not-allowed font-mono text-sm"
+        placeholder="Tự động tạo từ tên"
+      />
+      <small class="text-slate-500"
+        >Mã sẽ tự động tạo theo định dạng:
+        <code class="bg-slate-100 px-1 rounded"
+          >[MÃ_ĐƠN_VỊ]_[TÊN_ĐỊA_ĐIỂM]</code
+        ></small
+      >
+      <small class="text-red-500" *ngIf="validationErrors.code">{{
+        validationErrors.code
+      }}</small>
+    </div>
+
+    <!-- Row 3: Tên địa điểm -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700"
+        >Tên địa điểm <span class="text-red-500">*</span></label
+      >
+      <input
+        pInputText
+        formControlName="name"
+        placeholder="VD: Trụ sở 47 Phạm Văn Đồng"
+        [class.border-red-500]="validationErrors.name"
+      />
+      <small class="text-slate-500"
+        >Tên sẽ được tự động chuẩn hóa (viết hoa chữ cái đầu & thay thế dấu) sau
+        khi dừng gõ.</small
+      >
+      <small class="text-red-500" *ngIf="validationErrors.name">{{
+        validationErrors.name
+      }}</small>
+    </div>
+
+    <!-- Row 4: Địa chỉ -->
+    <div class="flex flex-col gap-2">
+      <label class="font-semibold text-sm text-slate-700">Địa chỉ</label>
+      <input
+        pInputText
+        formControlName="address"
+        placeholder="VD: 47 Phạm Văn Đồng – Tầng 3"
+      />
+      <small class="text-slate-500"
+        >Không bắt buộc. Sẽ được tự động trim khi lưu.</small
+      >
+    </div>
+
+    <!-- Row 5: Thứ tự hiển thị + help icon -->
+    <div class="grid grid-cols-2 gap-4 items-start">
+      <div class="flex flex-col gap-2">
+        <label
+          class="font-semibold text-sm text-slate-700 flex items-center gap-2"
+        >
+          Thứ tự hiển thị
+        </label>
+        <p-inputNumber
+          formControlName="displayOrder"
+          [min]="0"
+          [showButtons]="true"
+          buttonLayout="horizontal"
+          incrementButtonIcon="pi pi-plus"
+          decrementButtonIcon="pi pi-minus"
+          [step]="1"
+          placeholder="VD: 1, 2, 3..."
+        ></p-inputNumber>
+        <small class="text-slate-500"
+          >Số thứ tự nhỏ hơn sẽ hiển thị trước (1 → 2 → 3…).</small
+        >
+        <small class="text-red-500" *ngIf="validationErrors.displayOrder">{{
+          validationErrors.displayOrder
+        }}</small>
+      </div>
+      <div class="flex flex-col gap-2 pt-6">
+        <span class="flex items-center gap-2 text-slate-500 text-sm">
+          <i
+            class="pi pi-info-circle"
+            pTooltip="Dùng để sắp xếp ưu tiên hiển thị trong danh sách"
+            tooltipPosition="top"
+          ></i>
+          Sắp xếp ưu tiên
+        </span>
+      </div>
+    </div>
+
+    <!-- Row 6: Toggle kích hoạt -->
+    <div class="flex items-center gap-3 p-3 bg-slate-50 rounded">
+      <p-inputSwitch formControlName="isActive"></p-inputSwitch>
+      <div class="flex flex-col">
+        <span class="font-semibold text-sm">Kích hoạt địa điểm</span>
+        <small class="text-slate-600"
+          >Địa điểm sẽ hiển thị trong danh sách phân công.</small
+        >
+      </div>
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="flex justify-between items-center pt-2">
       <button
         pButton
         type="button"
         label="Hủy"
         class="p-button-text"
-        (click)="dlgOpen = false"
+        (click)="visible = false"
       ></button>
-      <button
-        pButton
-        type="submit"
-        label="Lưu"
-        icon="pi pi-check"
-        [disabled]="f.invalid"
-      ></button>
+      <button pButton type="submit" label="Lưu" icon="pi pi-check"></button>
     </div>
   </form>
 </p-dialog>

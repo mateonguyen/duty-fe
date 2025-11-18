@@ -66,12 +66,14 @@ export class StaffDataService {
   private convertToSimpleUsers(users: UserSearchDto[]): SimpleUser[] {
     return users.map((u) => ({
       id: this.hashUsername(u.username),
+      username: u.username, // Keep original username for backend API
       displayName: u.displayName || u.username,
       // Use server-provided isLeader when available
       isLeader: !!(u as any).isLeader,
       positionLevel: u.positionLevel ?? undefined,
       positionName: u.positionName || undefined,
-      phone: undefined, // EOffice không có phone, có thể thêm sau
+      phone: u.phone || undefined, // Phone from eOffice, can be null/undefined
+      orgUnitCode: u.orgUnitCode || undefined, // Keep orgUnitCode for backend
       orgUnitName: u.orgUnitName || 'Khác',
       orgUnitId: u.orgUnitId ?? undefined,
     }));
@@ -85,11 +87,13 @@ export class StaffDataService {
   ): (SimpleUser & { orgUnitName: string })[] {
     return users.map((u) => ({
       id: this.hashUsername(u.username),
+      username: u.username, // Keep original username for backend API
       displayName: u.displayName || u.username,
       isLeader: !!(u as any).isLeader,
       positionLevel: u.positionLevel ?? undefined,
       positionName: u.positionName || undefined,
       phone: undefined,
+      orgUnitCode: u.orgUnitCode || undefined, // Keep orgUnitCode for backend
       orgUnitName: u.orgUnitName || 'Khác', // Required string
       orgUnitId: u.orgUnitId ?? undefined,
     }));

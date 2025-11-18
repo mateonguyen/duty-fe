@@ -14,6 +14,8 @@ export interface SimpleUserWithOrgDto {
   positionName?: string;
   orgUnitId?: number | null;
   orgUnitCode?: string | null;
+  orgUnitName?: string | null;
+  phone?: string | null;
 }
 
 export interface OrgUnitNodeWithStaffDto extends OrgUnitNodeDto {

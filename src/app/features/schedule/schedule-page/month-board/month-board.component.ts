@@ -9,20 +9,35 @@ import {
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { AssignmentRead, DayKey } from '../../schedule';
+import { OverlayPanelModule } from 'primeng/overlaypanel';
+import { TooltipModule } from 'primeng/tooltip';
+import { AssignmentRead, DayKey, SimpleUser } from '../../schedule';
 
 type CellExtra = string | string[] | Record<string, boolean> | null | undefined;
 
 @Component({
   standalone: true,
   selector: 'app-month-board',
-  imports: [CommonModule, ButtonModule, DragDropModule],
+  imports: [
+    CommonModule,
+    ButtonModule,
+    DragDropModule,
+    OverlayPanelModule,
+    TooltipModule,
+  ],
   templateUrl: './month-board.component.html',
+  styleUrls: ['./month-board.component.scss'],
 })
 export class MonthBoardComponent {
+  // Max assignments to show per cell before showing "+X"
+  private readonly MAX_VISIBLE_ASSIGNMENTS = 4;
+
   // Chuyển thành signal để computed có thể track
   private _from = signal<string>('');
   private _to = signal<string>('');
+
+  // Track selected assignment for popover
+  selectedAssignment = signal<AssignmentRead | null>(null);
 
   @Input() set from(val: string) {
     this._from.set(val);
@@ -39,8 +54,10 @@ export class MonthBoardComponent {
   }
 
   @Input() selectedShiftId: number | null = null;
+  @Input() selectedLocationId: number | null = null;
   @Input() assignments: AssignmentRead[] = [];
   @Input() readOnly = false;
+  @Input() selectedUser: SimpleUser | null = null;
 
   @Output() quickAdd = new EventEmitter<string>(); // dateKey
   @Output() remove = new EventEmitter<AssignmentRead>();
@@ -75,14 +92,116 @@ export class MonthBoardComponent {
   cellAssignments(dayKey: string) {
     if (!this.selectedShiftId) return [];
     const filtered = this.assignments.filter(
-      (a) => a.date === dayKey && a.shiftId === this.selectedShiftId
+      (a) =>
+        a.date === dayKey &&
+        a.shiftId === this.selectedShiftId &&
+        (this.selectedLocationId == null ||
+          a.locationId === this.selectedLocationId)
     );
-    // Sort leaders first
-    return filtered.sort((a, b) => {
-      if (a.isLeader && !b.isLeader) return -1;
-      if (!a.isLeader && b.isLeader) return 1;
-      return 0;
+    return this.sortAssignments(filtered);
+  }
+
+  private sortAssignments(list: AssignmentRead[]): AssignmentRead[] {
+    return [...list].sort((a, b) => {
+      // First priority: leaders before staff
+      const aLeader = !!a.isLeader;
+      const bLeader = !!b.isLeader;
+      if (aLeader !== bLeader) return aLeader ? -1 : 1;
+
+      // Second priority: sort by positionLevel (lower C_LEVEL = higher rank, e.g., 1=Director)
+      const aLevel = a.positionLevel ?? 999; // Default to high number if null
+      const bLevel = b.positionLevel ?? 999;
+      if (aLevel !== bLevel) return aLevel - bLevel;
+
+      // Fallback: alphabetical by name
+      return (a.userName || '').localeCompare(b.userName || '');
     });
+  }
+
+  leaderAssignments(dayKey: string): AssignmentRead[] {
+    return this.cellAssignments(dayKey).filter((a) => a.isLeader);
+  }
+
+  staffAssignments(dayKey: string): AssignmentRead[] {
+    return this.cellAssignments(dayKey).filter((a) => !a.isLeader);
+  }
+
+  // Get visible leaders (limited by MAX_VISIBLE_ASSIGNMENTS)
+  visibleLeaders(dayKey: string): AssignmentRead[] {
+    const leaders = this.leaderAssignments(dayKey);
+    const staff = this.staffAssignments(dayKey);
+    const total = leaders.length + staff.length;
+
+    if (total <= this.MAX_VISIBLE_ASSIGNMENTS) {
+      return leaders;
+    }
+
+    // Show at least 1 leader if exists, rest for staff
+    const maxLeaders = Math.min(
+      leaders.length,
+      Math.max(1, this.MAX_VISIBLE_ASSIGNMENTS - staff.length)
+    );
+    return leaders.slice(0, maxLeaders);
+  }
+
+  // Get visible staff (limited by remaining space after leaders)
+  visibleStaff(dayKey: string): AssignmentRead[] {
+    const leaders = this.leaderAssignments(dayKey);
+    const staff = this.staffAssignments(dayKey);
+    const total = leaders.length + staff.length;
+
+    if (total <= this.MAX_VISIBLE_ASSIGNMENTS) {
+      return staff;
+    }
+
+    const visibleLeaderCount = this.visibleLeaders(dayKey).length;
+    const maxStaff = Math.max(
+      0,
+      this.MAX_VISIBLE_ASSIGNMENTS - visibleLeaderCount
+    );
+    return staff.slice(0, maxStaff);
+  }
+
+  // Get overflow count (+X)
+  overflowCount(dayKey: string): number {
+    const leaders = this.leaderAssignments(dayKey);
+    const staff = this.staffAssignments(dayKey);
+    const total = leaders.length + staff.length;
+    const visible =
+      this.visibleLeaders(dayKey).length + this.visibleStaff(dayKey).length;
+    return Math.max(0, total - visible);
+  }
+
+  // Get all overflow assignments for tooltip
+  overflowAssignments(dayKey: string): AssignmentRead[] {
+    const all = this.cellAssignments(dayKey);
+    const visibleLeaders = this.visibleLeaders(dayKey);
+    const visibleStaff = this.visibleStaff(dayKey);
+    const visibleIds = new Set(
+      [...visibleLeaders, ...visibleStaff].map((a) => a.id)
+    );
+    return all.filter((a) => !visibleIds.has(a.id));
+  }
+
+  // Format overflow tooltip
+  getOverflowTooltip(dayKey: string): string {
+    const overflow = this.overflowAssignments(dayKey);
+    return overflow
+      .map(
+        (a) =>
+          `${a.isLeader ? '⭐ ' : ''}${a.userName}${
+            a.positionTitle ? ' - ' + a.positionTitle : ''
+          }`
+      )
+      .join('\n');
+  }
+
+  // Check if selected user has any assignment on this date (any shift)
+  hasSelectedUserAssignment(dayKey: string): boolean {
+    if (!this.selectedUser) return false;
+    return this.assignments.some(
+      (a) => a.date === dayKey && a.userId === this.selectedUser!.id
+    );
   }
 
   isToday(d: Date) {
@@ -92,6 +211,25 @@ export class MonthBoardComponent {
       t.getMonth() === d.getMonth() &&
       t.getDate() === d.getDate()
     );
+  }
+
+  /**
+   * Show assignment details in popover
+   */
+  showAssignmentDetails(event: Event, assignment: AssignmentRead, op: any) {
+    this.selectedAssignment.set(assignment);
+    op.toggle(event);
+  }
+
+  // Tag tooltip content combining name, title, unit and shift (snapshot fields)
+  getTagTooltip(a: AssignmentRead): string {
+    const parts: string[] = [];
+    parts.push(a.userName);
+    if (a.positionTitle) parts.push(a.positionTitle);
+    if (a.orgUnitName) parts.push(a.orgUnitName);
+    const shift = [a.shiftName, a.shiftTimeRange].filter(Boolean).join(' ');
+    if (shift) parts.push(shift);
+    return parts.join(' • ');
   }
 }
 

@@ -1,12 +1,28 @@
-<div class="p-4">
-  <p-toast></p-toast>
-  <p-confirmDialog></p-confirmDialog>
+<app-loading-spinner
+  [isLoading]="loading()"
+  loadingText="Đang tải danh sách lịch trực..."
+></app-loading-spinner>
 
-  <div class="flex items-center justify-between mb-3">
-    <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
-      <i class="pi pi-calendar text-blue-600"></i>
-      Danh sách kỳ lịch trực
-    </h3>
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+<main class="h-[calc(100vh-48px)] flex flex-col bg-gray-50">
+  <div
+    class="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between"
+  >
+    <!-- LEFT SIDE: title + scope-picker -->
+    <div class="flex items-center gap-3">
+      <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
+        <i class="pi pi-calendar text-blue-600"></i>
+        Danh sách kỳ lịch trực
+      </h3>
+      <!-- Scope Picker -->
+      <app-scope-picker
+        class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
+        [scopes]="scopes()"
+        [selected]="activeScope()"
+        (selectedChange)="onScopeChange($event)"
+      />
+    </div>
     <a
       pButton
       label="Tạo lịch"
@@ -15,176 +31,304 @@
     ></a>
   </div>
 
-  <p-table
-    [value]="filteredRosters"
-    [loading]="loading()"
-    dataKey="id"
-    [paginator]="true"
-    [rows]="10"
-    [rowsPerPageOptions]="[10, 25, 50]"
-    [showCurrentPageReport]="true"
-    currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
-    [globalFilterFields]="['name', 'scopeUnitName', 'defaultLocationName']"
-    styleClass="catalog-table"
-    [paginatorDropdownAppendTo]="'body'"
-    #dt
-  >
-    <ng-template pTemplate="caption">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <p-dropdown
-            [(ngModel)]="selectedYear"
-            [options]="yearOptions"
-            optionLabel="label"
-            optionValue="value"
-            (onChange)="onFilterChange()"
-            placeholder="Chọn năm"
-            [style]="{ width: '140px' }"
-          ></p-dropdown>
-          <p-dropdown
-            [(ngModel)]="selectedMonth"
-            [options]="monthOptions"
-            optionLabel="label"
-            optionValue="value"
-            (onChange)="onFilterChange()"
-            placeholder="Chọn tháng"
-            [style]="{ width: '140px' }"
-          ></p-dropdown>
-          <p-dropdown
-            [(ngModel)]="selectedStatus"
-            [options]="statusOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Chọn trạng thái"
-            [showClear]="false"
-            [style]="{ width: '160px' }"
-          ></p-dropdown>
-          <button
-            pButton
-            label="Tải lại"
-            icon="pi pi-refresh"
-            (click)="loadRosters()"
-            [loading]="loading()"
-            severity="secondary"
-            class="p-button-sm"
-          ></button>
+  <div class="flex-1 overflow-auto px-4 py-3">
+    <p-table
+      [value]="filteredRosters"
+      [loading]="loading()"
+      dataKey="id"
+      [paginator]="true"
+      [rows]="10"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
+      [globalFilterFields]="['name', 'scopeUnitName', 'defaultLocationName']"
+      styleClass="catalog-table"
+      [paginatorDropdownAppendTo]="'body'"
+      #dt
+    >
+      <ng-template pTemplate="caption">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <p-dropdown
+              [(ngModel)]="selectedYear"
+              [options]="yearOptions"
+              optionLabel="label"
+              optionValue="value"
+              (onChange)="onFilterChange()"
+              placeholder="Chọn năm"
+              [style]="{ width: '200px' }"
+              [appendTo]="'body'"
+              panelStyleClass="compact-panel"
+            ></p-dropdown>
+            <p-dropdown
+              [(ngModel)]="selectedMonth"
+              [options]="monthOptions"
+              optionLabel="label"
+              optionValue="value"
+              (onChange)="onFilterChange()"
+              placeholder="Chọn tháng"
+              [style]="{ width: '200px' }"
+              [appendTo]="'body'"
+              panelStyleClass="compact-panel"
+            ></p-dropdown>
+            <p-dropdown
+              [(ngModel)]="selectedStatus"
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Chọn trạng thái"
+              [showClear]="false"
+              [style]="{ width: '220px' }"
+              [appendTo]="'body'"
+              panelStyleClass="wide-panel"
+            ></p-dropdown>
+            <button
+              pButton
+              label="Tải lại"
+              icon="pi pi-refresh"
+              (click)="loadRosters()"
+              [loading]="loading()"
+              severity="secondary"
+              class="p-button-sm"
+            ></button>
+          </div>
+          <span class="p-input-icon-left" style="width: 320px">
+            <i class="pi pi-search"></i>
+            <input
+              pInputText
+              type="text"
+              (input)="onSearch($any($event.target).value)"
+              placeholder="Tìm kiếm..."
+              style="width: 100%; padding-left: 2.5rem"
+              #searchInput
+            />
+          </span>
         </div>
-        <span class="p-input-icon-left" style="width: 320px">
-          <i class="pi pi-search"></i>
-          <input
-            pInputText
-            type="text"
-            (input)="onSearch($any($event.target).value)"
-            placeholder="Tìm kiếm..."
-            style="width: 100%; padding-left: 2.5rem"
-            #searchInput
-          />
-        </span>
-      </div>
-    </ng-template>
+      </ng-template>
 
-    <ng-template pTemplate="header">
-      <tr>
-        <th style="width: 70px" class="text-center font-bold">STT</th>
-        <th pSortableColumn="scopeUnitName" class="font-bold">
-          Đơn vị <p-sortIcon field="scopeUnitName" />
-        </th>
-        <th pSortableColumn="name" class="font-bold">
-          Tên kỳ lịch <p-sortIcon field="name" />
-        </th>
-        <th class="font-bold">Địa điểm</th>
-        <th pSortableColumn="periodStart" class="font-bold">
-          Từ ngày <p-sortIcon field="periodStart" />
-        </th>
-        <th pSortableColumn="periodEnd" class="font-bold">
-          Đến ngày <p-sortIcon field="periodEnd" />
-        </th>
-        <th pSortableColumn="status" class="text-center font-bold">
-          Trạng thái <p-sortIcon field="status" />
-        </th>
-        <th class="text-center font-bold" style="width: 180px"></th>
-      </tr>
-    </ng-template>
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 70px" class="text-center font-bold">STT</th>
+          <th
+            *ngIf="showUnitColumn()"
+            pSortableColumn="scopeUnitName"
+            class="font-bold"
+            style="min-width: 180px"
+          >
+            Đơn vị <p-sortIcon field="scopeUnitName" />
+          </th>
+          <th pSortableColumn="name" class="font-bold" style="min-width: 200px">
+            Tên kỳ lịch <p-sortIcon field="name" />
+          </th>
+          <th class="font-bold" style="min-width: 160px">Địa điểm</th>
+          <th
+            pSortableColumn="periodStart"
+            class="font-bold"
+            style="width: 200px"
+          >
+            Thời gian <p-sortIcon field="periodStart" />
+          </th>
+          <th
+            pSortableColumn="status"
+            class="text-center font-bold"
+            style="width: 140px"
+          >
+            Trạng thái <p-sortIcon field="status" />
+          </th>
+          <th class="text-center font-bold" style="width: 200px">Hành động</th>
+        </tr>
+      </ng-template>
 
-    <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
-      <tr>
-        <td class="text-center text-slate-500">
-          {{ dt.first + rowIndex + 1 }}
-        </td>
-        <td class="text-slate-700">{{ r.scopeUnitName }}</td>
-        <td>
-          <a
-            routerLink="/schedule/rosters/{{ r.id }}/edit"
-            class="text-blue-600 hover:underline font-medium"
-            >{{ r.name }}</a
-          >
-        </td>
-        <td class="text-slate-600">
-          <span *ngIf="r.defaultLocationName">{{ r.defaultLocationName }}</span>
-          <span *ngIf="!r.defaultLocationName" class="text-slate-400 italic"
-            >Chưa chọn</span
-          >
-        </td>
-        <td class="text-slate-700">
-          {{ r.periodStart | date : "dd/MM/yyyy" }}
-        </td>
-        <td class="text-slate-700">{{ r.periodEnd | date : "dd/MM/yyyy" }}</td>
-        <td class="text-center">
-          <p-tag
-            [value]="getStatusLabel(r.status)"
-            [severity]="getSeverity(r.status)"
-          ></p-tag>
-        </td>
-        <td class="text-center">
-          <button
-            pButton
-            icon="pi pi-pencil"
-            class="p-button-text p-button-sm text-blue-600"
-            routerLink="/schedule/rosters/{{ r.id }}/edit"
-            pTooltip="Sửa"
-          ></button>
-          <button
-            pButton
-            icon="pi pi-eye"
-            class="p-button-text p-button-sm text-slate-600"
-            routerLink="/schedule/view/{{ r.id }}"
-            pTooltip="Xem"
-          ></button>
-          <button
-            *ngIf="r.status === 'DRAFT'"
-            pButton
-            icon="pi pi-upload"
-            class="p-button-text p-button-sm text-green-600"
-            (click)="publish(r)"
-            pTooltip="Công bố"
-          ></button>
-          <button
-            *ngIf="r.status === 'PUBLISHED'"
-            pButton
-            icon="pi pi-undo"
-            class="p-button-text p-button-sm text-orange-600"
-            (click)="unpublish(r)"
-            pTooltip="Hủy công bố"
-          ></button>
-          <button
-            *ngIf="r.status !== 'LOCKED'"
-            pButton
-            icon="pi pi-lock"
-            class="p-button-text p-button-sm text-purple-600"
-            (click)="lock(r)"
-            pTooltip="Khóa"
-          ></button>
-          <button
-            *ngIf="r.status === 'DRAFT'"
-            pButton
-            class="p-button-text p-button-sm"
-            (click)="delete(r)"
-            pTooltip="Xóa"
-          >
-            <i class="pi pi-trash text-red-600"></i>
-          </button>
-        </td>
-      </tr>
-    </ng-template>
-  </p-table>
-</div>
+      <ng-template pTemplate="body" let-r let-rowIndex="rowIndex">
+        <tr
+          [ngClass]="getRowClass(r)"
+          class="hover:bg-slate-50 transition-colors"
+        >
+          <td class="text-center text-slate-500">
+            {{ dt.first + rowIndex + 1 }}
+          </td>
+          <td *ngIf="showUnitColumn()" class="text-slate-700">
+            <span [pTooltip]="r.scopeUnitName" tooltipPosition="top">{{
+              r.scopeUnitName
+            }}</span>
+          </td>
+          <td>
+            <a
+              [routerLink]="
+                canEdit(r)
+                  ? '/schedule/rosters/' + r.id + '/edit'
+                  : '/schedule/view/' + r.id
+              "
+              class="text-blue-600 hover:underline font-medium"
+              [pTooltip]="formatRosterName(r)"
+              tooltipPosition="top"
+              >{{ formatRosterName(r) }}</a
+            >
+          </td>
+          <td class="text-slate-600">
+            <span
+              *ngIf="r.defaultLocationName"
+              [pTooltip]="r.defaultLocationName"
+              tooltipPosition="top"
+              >{{ r.defaultLocationName }}</span
+            >
+            <span *ngIf="!r.defaultLocationName" class="text-slate-400 italic"
+              >Chưa chọn</span
+            >
+          </td>
+          <td class="text-slate-700 font-mono text-sm">
+            <span
+              [pTooltip]="
+                (r.periodStart | date : 'dd/MM/yyyy') +
+                ' – ' +
+                (r.periodEnd | date : 'dd/MM/yyyy')
+              "
+              tooltipPosition="top"
+            >
+              {{ r.periodStart | date : "dd/MM/yyyy" }} –
+              {{ r.periodEnd | date : "dd/MM/yyyy" }}
+            </span>
+          </td>
+          <td class="text-center">
+            <span
+              *ngIf="r.status === 'DRAFT'"
+              class="inline-flex items-center gap-1 text-blue-700 text-xs font-semibold bg-blue-50 rounded px-2 py-1"
+            >
+              <i class="pi pi-file-edit" style="font-size: 10px"></i> Bản thảo
+            </span>
+            <span
+              *ngIf="r.status === 'PUBLISHED'"
+              class="inline-flex items-center gap-1 text-green-700 text-xs font-semibold bg-green-50 rounded px-2 py-1"
+            >
+              <i class="pi pi-check-circle" style="font-size: 10px"></i> Đã công
+              bố
+            </span>
+            <span
+              *ngIf="r.status === 'LOCKED'"
+              class="inline-flex items-center gap-1 text-gray-600 text-xs font-semibold bg-gray-100 rounded px-2 py-1"
+            >
+              <i class="pi pi-lock" style="font-size: 10px"></i> Đã khóa
+            </span>
+          </td>
+          <td class="text-center">
+            <div
+              class="inline-flex items-center justify-center"
+              style="white-space: nowrap; gap: 2px"
+            >
+              <!-- LEFT GROUP: Safe actions (Edit, View, Clone) -->
+              <div
+                class="inline-flex items-center"
+                style="gap: 2px; margin-right: 8px"
+              >
+                <!-- 1. Edit -->
+                <button
+                  *ngIf="showEdit(r)"
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-text p-button-sm"
+                  [ngClass]="canEdit(r) ? 'text-blue-600' : 'text-gray-400'"
+                  [routerLink]="
+                    canEdit(r) ? '/schedule/rosters/' + r.id + '/edit' : null
+                  "
+                  [disabled]="!canEdit(r)"
+                  pTooltip="Sửa kỳ lịch"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+                <span
+                  *ngIf="!showEdit(r)"
+                  style="width: 32px; height: 32px; display: inline-block"
+                ></span>
+
+                <!-- 2. View -->
+                <button
+                  pButton
+                  icon="pi pi-eye"
+                  class="p-button-text p-button-sm text-slate-600"
+                  [routerLink]="'/schedule/view/' + r.id"
+                  pTooltip="Xem chi tiết"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+
+                <!-- 3. Clone -->
+                <button
+                  *ngIf="showClone(r)"
+                  pButton
+                  icon="pi pi-copy"
+                  class="p-button-text p-button-sm text-indigo-600"
+                  (click)="clone(r)"
+                  pTooltip="Nhân bản kỳ lịch"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+              </div>
+
+              <!-- Divider -->
+              <span class="text-slate-300" style="margin: 0 4px">│</span>
+
+              <!-- RIGHT GROUP: Important/Destructive actions (Publish, Lock, Delete) -->
+              <div
+                class="inline-flex items-center"
+                style="gap: 2px; margin-left: 4px"
+              >
+                <!-- 4. Publish -->
+                <button
+                  *ngIf="canPublish(r)"
+                  pButton
+                  icon="pi pi-upload"
+                  class="p-button-text p-button-sm text-green-600"
+                  (click)="publish(r)"
+                  pTooltip="Công bố kỳ lịch"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+                <span
+                  *ngIf="!canPublish(r)"
+                  style="width: 32px; height: 32px; display: inline-block"
+                ></span>
+
+                <!-- 5. Lock / Unlock -->
+                <button
+                  pButton
+                  [icon]="isLockDisabled(r) ? 'pi pi-lock' : 'pi pi-lock-open'"
+                  class="p-button-text p-button-sm"
+                  [ngClass]="
+                    isLockDisabled(r) ? 'text-gray-400' : 'text-purple-600'
+                  "
+                  (click)="!isLockDisabled(r) && lock(r)"
+                  [disabled]="isLockDisabled(r)"
+                  [pTooltip]="isLockDisabled(r) ? 'Đã khóa' : 'Khóa kỳ lịch'"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+
+                <!-- 6. Delete -->
+                <button
+                  *ngIf="showDelete(r)"
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-text p-button-sm text-red-600"
+                  (click)="delete(r)"
+                  pTooltip="Xóa kỳ lịch"
+                  tooltipPosition="top"
+                  [style.width.px]="32"
+                  [style.height.px]="32"
+                ></button>
+                <span
+                  *ngIf="!showDelete(r)"
+                  style="width: 32px; height: 32px; display: inline-block"
+                ></span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</main>

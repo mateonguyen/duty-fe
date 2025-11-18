@@ -66,3 +66,30 @@ ul.p-autocomplete-list li.p-highlight {
   border-left: 3px solid #10b981 !important;
   padding-left: calc(1rem - 3px) !important;
 }
+
+/* Monitoring Fullscreen Mode */
+body.monitoring-fullscreen {
+  overflow: hidden;
+}
+
+body.monitoring-fullscreen app-root app-app-layout .app-menubar,
+body.monitoring-fullscreen app-root app-app-layout .app-sidebar {
+  display: none;
+}
+
+body.monitoring-fullscreen .monitoring-page {
+  padding: 8px 16px;
+  height: 100vh;
+}
+
+body.monitoring-fullscreen .monitor {
+  height: calc(100vh - 16px);
+}
+
+body.monitoring-fullscreen .monitor-toolbar {
+  font-size: 1.125rem;
+}
+
+body.monitoring-fullscreen .monitor-toolbar__title {
+  font-size: 1.5rem;
+}

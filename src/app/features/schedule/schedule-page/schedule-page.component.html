@@ -1,4 +1,11 @@
-<!-- src/app/features/schedule/schedule-page/schedule-page.component.html -->
+﻿<!-- src/app/features/schedule/schedule-page/schedule-page.component.html -->
+<app-loading-spinner
+  [isLoading]="pageLoading()"
+  loadingText="Đang tải dữ liệu lịch trực..."
+  subText="Vui lòng đợi trong giây lát"
+></app-loading-spinner>
+
+<p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
 <div class="h-[calc(100vh-48px)] flex flex-col">
@@ -7,6 +14,17 @@
     <!-- LEFT SIDE: title + scope-picker -->
     <div class="flex items-center gap-3">
       <h1 class="text-xl font-semibold uppercase">Bảng phân công trực</h1>
+      <span
+        *ngIf="isEditMode()"
+        class="px-3 py-1 text-xs font-semibold rounded-full"
+        [ngClass]="{
+          'bg-yellow-100 text-yellow-800': isDraft(),
+          'bg-green-100 text-green-800': isPublished() && !isLocked(),
+          'bg-gray-100 text-gray-800': isLocked()
+        }"
+      >
+        {{ isDraft() ? "Nháp" : isLocked() ? "Đã khóa" : "Đã xuất bản" }}
+      </span>
       <app-scope-picker
         class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
         [scopes]="scopes()"
@@ -15,30 +33,83 @@
       ></app-scope-picker>
     </div>
     <div class="flex gap-2">
+      <div
+        *ngIf="!canEdit()"
+        class="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800"
+      >
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>Lịch trực đã xuất bản không thể chỉnh sửa</span>
+      </div>
+      <!-- Published conflict banner -->
+      <div
+        *ngIf="hasPublishedConflict() && canEdit()"
+        class="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800"
+      >
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>
+          Trùng với lịch đã xuất bản:
+          <ng-container
+            *ngFor="let c of publishedConflict()?.items; let i = index"
+          >
+            <b>{{ c.name }}</b>
+            <span *ngIf="c.defaultLocationName"
+              >({{ c.defaultLocationName }})</span
+            >
+            <span>
+              [{{ c.periodStart | date : "dd/MM/yyyy" }} -
+              {{ c.periodEnd | date : "dd/MM/yyyy" }}]
+            </span>
+            <span
+              *ngIf="
+                publishedConflict() &&
+                publishedConflict()?.items &&
+                i < publishedConflict()!.items.length - 1
+              "
+              >,
+            </span>
+          </ng-container>
+        </span>
+      </div>
       <button
         pButton
-        label="Hủy"
+        label="Thoát"
         severity="danger"
         (click)="onCancel()"
       ></button>
       <button
         pButton
-        label="Lưu"
+        class="p-button-outlined"
+        label="Lưu nháp"
         icon="pi pi-save"
-        severity="primary"
-        (click)="onSave()"
-        [disabled]="!activeScope()"
+        (click)="onSaveDraft()"
+        [disabled]="!canSave() || !canEdit()"
+        [pTooltip]="getSaveTooltip()"
+        tooltipPosition="bottom"
+        appPermissionTooltip="roster.create"
+      ></button>
+      <button
+        pButton
+        label="Xuất bản"
+        icon="pi pi-check-circle"
+        (click)="onPublish()"
+        [disabled]="!canSave() || !canEdit() || hasPublishedConflict()"
+        [pTooltip]="getPublishTooltip()"
+        tooltipPosition="bottom"
         appPermissionTooltip="roster.create"
       ></button>
     </div>
   </div>
   <!-- Header row: app header -->
-  <app-header-bar></app-header-bar>
+  <app-header-bar
+    [meta]="roster()"
+    [orgUnits]="[]"
+    (metaChange)="onMetaChange($event)"
+  ></app-header-bar>
 
   <!-- Body: only render when scope is selected -->
   <div class="flex flex-1 min-h-0" *ngIf="activeScope(); else noScope">
     <!-- Left: Staff tree with scroll container -->
-    <div class="w-[280px] border-r flex flex-col max-h-[calc(100vh-160px)]">
+    <div class="w-[280px] border-r flex flex-col">
       <ng-container *ngIf="loadingTree(); else treeContent">
         <div class="p-3 text-sm text-slate-500">Đang tải danh sách cán bộ…</div>
       </ng-container>
@@ -49,7 +120,7 @@
             else noStaff
           "
         >
-          <div class="flex-1 overflow-y-auto">
+          <div class="flex-1 min-h-0 overflow-y-auto">
             <app-staff-tree
               [orgTree]="orgTreeWithStaff()"
               [selectedUser]="selectedUser()"
@@ -67,24 +138,46 @@
 
     <!-- Middle: Calendar -->
     <div class="flex-1 min-w-0 flex flex-col">
-      <app-shift-tabs
-        class="border-b"
-        [shifts]="shifts"
-        [selectedShiftId]="selectedShiftId()"
-        [visibleShiftIds]="visibleShiftIds()"
-        [locations]="locations"
-        [locationId]="roster().locationId ?? null"
-        (shiftChange)="onSelectShift($event)"
-        (locationCreated)="onLocationCreated($event)"
-        (locationChange)="onMetaChange({ locationId: $event })"
-        (visibleShiftsChange)="onVisibleShiftsChange($event)"
+      <!-- Location Tabs (new) -->
+      <app-location-tabs
+        [allLocations]="locations"
+        [locationConfigs]="locationConfigs()"
+        [selectedLocationId]="selectedLocationId()"
+        (locationChange)="onSelectLocation($event)"
+        (locationConfigChange)="onLocationConfigChange($event)"
       />
-      <div class="flex-1 overflow-auto">
+
+      <!-- Shift Tabs (updated - removed location dropdown) -->
+      <div class="relative">
+        <app-shift-tabs
+          class="border-b"
+          [shifts]="shifts"
+          [selectedShiftId]="selectedShiftId()"
+          [visibleShiftIds]="visibleShiftIds()"
+          [locations]="locations"
+          [locationId]="selectedLocationId() ?? roster().locationId ?? null"
+          (shiftChange)="onSelectShift($event)"
+          (locationCreated)="onLocationCreated($event)"
+          (locationChange)="onSelectLocation($event)"
+          (visibleShiftsChange)="onVisibleShiftsChange($event)"
+        />
+        <div
+          *ngIf="shiftsLoading()"
+          class="absolute inset-0 bg-white/60 flex items-center justify-center text-sm text-slate-600"
+        >
+          Đang tải ca trực...
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto calendar-wrapper">
         <app-month-board
           [from]="days().from"
           [to]="days().to"
           [selectedShiftId]="selectedShiftId()"
+          [selectedLocationId]="
+            selectedLocationId() ?? roster().locationId ?? null
+          "
           [assignments]="assignments()"
+          [selectedUser]="selectedUser()"
           (quickAdd)="onQuickAdd($event)"
           (remove)="onRemoveAssignment($event)"
           (staffDropped)="onStaffDropped($event)"

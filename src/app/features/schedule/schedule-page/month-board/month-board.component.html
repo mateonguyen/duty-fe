@@ -1,12 +1,13 @@
-<div>
+<div class="calendar-container">
   <!-- Header thứ -->
   <div
-    class="grid sticky top-0 z-10"
+    class="calendar-header"
     [style.gridTemplateColumns]="'repeat(7, minmax(0,1fr))'"
   >
     <div
       *ngFor="let i of [1, 2, 3, 4, 5, 6, 0]"
-      class="py-2 px-2 text-center font-semibold border-t border-b bg-white"
+      class="header-cell"
+      [class.weekend]="i === 6 || i === 0"
     >
       {{ ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][i] }}
     </div>
@@ -14,65 +15,185 @@
 
   <!-- Các tuần -->
   <div
-    *ngFor="let week of weeks()"
-    class="grid"
+    *ngFor="let week of weeks(); let weekIndex = index"
+    class="calendar-week"
+    [class.calendar-row]="true"
     [style.gridTemplateColumns]="'repeat(7, minmax(0,1fr))'"
   >
     <div
       *ngFor="let d of week"
-      class="relative min-h-[96px] border-r border-b p-1"
+      class="calendar-cell"
       [ngClass]="{
-        'bg-slate-200': !d.inRange,
-        'ring-2 ring-inset ring-blue-500': isToday(d.date)
+        'out-of-range': !d.inRange,
+        'is-today': isToday(d.date),
+        'has-selected-user': hasSelectedUserAssignment(d.key)
       }"
       cdkDropList
       (cdkDropListDropped)="onStaffDrop($event, d)"
     >
-      <!-- date -->
-      <div
-        class="absolute left-1 top-1 text-sm font-semibold"
-        [class.text-slate-400]="!d.inRange && !isToday(d.date)"
-        [class.text-slate-700]="d.inRange && !isToday(d.date)"
-        [class.text-blue-700]="isToday(d.date)"
-      >
-        {{ d.date | date : "d" }}
-      </div>
+      <!-- date number with today indicator -->
+      <div class="cell-header">
+        <div
+          class="date-number"
+          [class.out-of-range-date]="!d.inRange"
+          [class.today-badge]="isToday(d.date)"
+        >
+          {{ d.date | date : "d" }}
+        </div>
 
-      <div class="absolute right-1 top-1 text-[11px]">
         <button
           *ngIf="d.inRange && !readOnly"
+          class="add-btn"
           pButton
           icon="pi pi-plus"
-          class="p-button-text p-button-sm"
           (click)="quickAdd.emit(d.key)"
         ></button>
       </div>
 
-      <!-- chips -->
-      <div class="flex flex-wrap gap-1 pt-5 pr-6">
-        <span
-          *ngFor="let a of cellAssignments(d.key)"
-          class="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
-          [ngClass]="{
-            'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300':
-              a.isLeader,
-            'bg-slate-100 text-slate-700': !a.isLeader
-          }"
-        >
-          <i
-            *ngIf="a.isLeader"
-            class="pi pi-star-fill text-yellow-500 text-[10px]"
-          ></i>
-          {{ a.userName }}
-          <button
-            *ngIf="!readOnly"
-            pButton
-            icon="pi pi-times"
-            class="p-button-text p-button-sm !w-4 !h-4 !p-0"
-            (click)="remove.emit(a)"
-          ></button>
-        </span>
+      <!-- assignments split: leaders on separate lines, staff chips below -->
+      <div class="cell-content">
+        <!-- Leaders -->
+        <div class="assignments-leaders">
+          <div
+            *ngFor="let a of visibleLeaders(d.key)"
+            class="assignment-chip leader-chip"
+            (click)="showAssignmentDetails($event, a, op)"
+            [pTooltip]="getTagTooltip(a)"
+            tooltipPosition="top"
+          >
+            <i class="pi pi-star-fill chip-icon"></i>
+            <span class="chip-name">{{ a.userName }}</span>
+            <button
+              *ngIf="!readOnly"
+              class="chip-remove"
+              pButton
+              icon="pi pi-times"
+              (click)="$event.stopPropagation(); remove.emit(a)"
+            ></button>
+          </div>
+        </div>
+
+        <!-- Staff -->
+        <div class="assignments-staff">
+          <span
+            *ngFor="let a of visibleStaff(d.key)"
+            class="assignment-chip staff-chip"
+            (click)="showAssignmentDetails($event, a, op)"
+            [pTooltip]="getTagTooltip(a)"
+            tooltipPosition="top"
+          >
+            <span class="chip-name">{{ a.userName }}</span>
+            <button
+              *ngIf="!readOnly"
+              class="chip-remove"
+              pButton
+              icon="pi pi-times"
+              (click)="$event.stopPropagation(); remove.emit(a)"
+            ></button>
+          </span>
+
+          <!-- Overflow indicator -->
+          <span
+            *ngIf="overflowCount(d.key) > 0"
+            class="overflow-indicator"
+            [pTooltip]="getOverflowTooltip(d.key)"
+            tooltipPosition="top"
+          >
+            +{{ overflowCount(d.key) }}
+          </span>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Assignment Details Popover -->
+  <p-overlayPanel #op [showCloseIcon]="true" styleClass="assignment-popover">
+    <ng-template pTemplate="content">
+      <div *ngIf="selectedAssignment()" class="popover-content">
+        <!-- Header with avatar placeholder and name -->
+        <div class="popover-header">
+          <div class="avatar">
+            {{ selectedAssignment()!.userName.charAt(0).toUpperCase() }}
+          </div>
+          <div class="header-info">
+            <h4 class="user-name">
+              {{ selectedAssignment()!.userName }}
+            </h4>
+            <span *ngIf="selectedAssignment()!.isLeader" class="leader-badge">
+              <i class="pi pi-star-fill"></i> Lãnh đạo
+            </span>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div class="popover-details">
+          <!-- Position Title (Snapshot) -->
+          <!-- This uses snapshot position to ensure historical correctness.
+               Shows staff position at assignment time, NOT current live position. -->
+          <div class="detail-row" *ngIf="selectedAssignment()!.positionTitle">
+            <i class="pi pi-id-card detail-icon"></i>
+            <div>
+              <div class="detail-label">Chức danh</div>
+              <div class="detail-value">
+                {{ selectedAssignment()!.positionTitle }}
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-row" *ngIf="selectedAssignment()!.dutyRoleName">
+            <i class="pi pi-briefcase detail-icon"></i>
+            <div>
+              <div class="detail-label">Vai trò</div>
+              <div class="detail-value">
+                {{ selectedAssignment()!.dutyRoleName }}
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-row" *ngIf="selectedAssignment()!.orgUnitName">
+            <i class="pi pi-building detail-icon"></i>
+            <div>
+              <div class="detail-label">Đơn vị</div>
+              <div class="detail-value">
+                {{ selectedAssignment()!.orgUnitName }}
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-row" *ngIf="selectedAssignment()!.phone">
+            <i class="pi pi-phone detail-icon"></i>
+            <div>
+              <div class="detail-label">Điện thoại</div>
+              <div class="detail-value">
+                {{ selectedAssignment()!.phone }}
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-row" *ngIf="selectedAssignment()!.note">
+            <i class="pi pi-comment detail-icon"></i>
+            <div>
+              <div class="detail-label">Ghi chú</div>
+              <div class="detail-value">
+                {{ selectedAssignment()!.note }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state if no additional info -->
+          <div
+            *ngIf="
+              !selectedAssignment()!.dutyRoleName &&
+              !selectedAssignment()!.phone &&
+              !selectedAssignment()!.note &&
+              !selectedAssignment()!.orgUnitName
+            "
+            class="empty-state"
+          >
+            Chưa có thông tin chi tiết
+          </div>
+        </div>
+      </div>
+    </ng-template>
+  </p-overlayPanel>
 </div>

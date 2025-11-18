@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TableModule } from 'primeng/table';
+import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextarea } from 'primeng/inputtextarea';
@@ -159,10 +160,15 @@ export class RolesListComponent implements OnInit {
             this.editedPerms!.has(p.code)
           );
           this.currentRole = { ...this.currentRole!, permissions: updated };
+          this.msg.add({ severity: 'success', detail: 'Đã lưu quyền' });
+          this.showPerms = false;
+        },
+        error: (err) => {
+          console.error('Failed to save permissions:', err);
+          this.msg.add({ severity: 'error', detail: 'Không lưu được quyền' });
         },
         complete: () => {
           this.saving = false;
-          this.showPerms = false;
         },
       });
   }
@@ -325,64 +331,60 @@ export class RolesListComponent implements OnInit {
       acceptLabel: 'Xóa',
       rejectLabel: 'Hủy',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => {
+      accept: async () => {
         const deleteOps = this.selected.map((r) =>
-          this.api.deleteRole(r.code).toPromise()
+          firstValueFrom(this.api.deleteRole(r.code))
         );
-        Promise.all(deleteOps).then(
-          () => {
-            const deletedCodes = new Set(this.selected.map((r) => r.code));
-            this.roles = this.roles.filter((r) => !deletedCodes.has(r.code));
-            this.selected = [];
-            this.msg.add({
-              severity: 'success',
-              summary: 'Thành công',
-              detail: 'Đã xóa các vai trò',
-            });
-          },
-          (err) => {
-            this.msg.add({
-              severity: 'error',
-              summary: 'Lỗi',
-              detail: 'Không thể xóa một số vai trò',
-            });
-          }
-        );
+        try {
+          await Promise.all(deleteOps);
+          const deletedCodes = new Set(this.selected.map((r) => r.code));
+          this.roles = this.roles.filter((r) => !deletedCodes.has(r.code));
+          this.selected = [];
+          this.msg.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: 'Đã xóa các vai trò',
+          });
+        } catch (err) {
+          this.msg.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể xóa một số vai trò',
+          });
+        }
       },
     });
   }
 
-  toggleManyStatus() {
+  async toggleManyStatus() {
     if (!this.selected?.length) return;
 
     const updateOps = this.selected.map((r) =>
-      this.api
-        .updateRole(r.code, {
+      firstValueFrom(
+        this.api.updateRole(r.code, {
           name: r.name,
           description: r.description,
           isSystemRole: r.isSystemRole,
           active: !r.active,
         })
-        .toPromise()
+      )
     );
 
-    Promise.all(updateOps).then(
-      () => {
-        this.loadRoles();
-        this.selected = [];
-        this.msg.add({
-          severity: 'success',
-          summary: 'Thành công',
-          detail: 'Đã đổi trạng thái',
-        });
-      },
-      (err) => {
-        this.msg.add({
-          severity: 'error',
-          summary: 'Lỗi',
-          detail: 'Không thể đổi trạng thái',
-        });
-      }
-    );
+    try {
+      await Promise.all(updateOps);
+      this.loadRoles();
+      this.selected = [];
+      this.msg.add({
+        severity: 'success',
+        summary: 'Thành công',
+        detail: 'Đã đổi trạng thái',
+      });
+    } catch (err) {
+      this.msg.add({
+        severity: 'error',
+        summary: 'Lỗi',
+        detail: 'Không thể đổi trạng thái',
+      });
+    }
   }
 }

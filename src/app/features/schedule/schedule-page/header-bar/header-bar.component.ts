@@ -1,5 +1,13 @@
 // src/app/features/schedule/header-bar/header-bar.component.ts
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
@@ -29,7 +37,7 @@ interface OrgUnitOption {
   ],
   templateUrl: './header-bar.component.html',
 })
-export class HeaderBarComponent {
+export class HeaderBarComponent implements OnInit, OnChanges {
   @Input() meta!: RosterMeta;
   @Input() orgUnits: OrgUnitOption[] = []; // Danh sách phòng ban
   @Input() showScopeSelector = true; // Hiện selector loại lịch (nếu có cả 2 quyền)
@@ -42,12 +50,28 @@ export class HeaderBarComponent {
   range: [Date | null, Date | null] | null = null;
   selectedUnit: OrgUnitOption | null = null;
 
-  ngOnChanges() {
+  ngOnInit(): void {
+    this.syncFromMeta();
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['meta']) {
+      this.syncFromMeta();
+    }
+  }
+
+  private syncFromMeta() {
+    if (!this.meta) return;
+    
     this.title = (this.meta as any).name ?? '';
-    // convert key -> Date cho p-calendar
-    const [y1, m1, d1] = this.meta.from.split('-').map(Number);
-    const [y2, m2, d2] = this.meta.to.split('-').map(Number);
-    this.range = [new Date(y1, m1 - 1, d1), new Date(y2, m2 - 1, d2)];
+    
+    // Convert YYYY-MM-DD -> Date for p-datepicker
+    if (this.meta.from && this.meta.to) {
+      const [y1, m1, d1] = this.meta.from.split('-').map(Number);
+      const [y2, m2, d2] = this.meta.to.split('-').map(Number);
+      this.range = [new Date(y1, m1 - 1, d1), new Date(y2, m2 - 1, d2)];
+    }
+    
     // Set selected unit
     if (this.orgUnits.length > 0 && !this.selectedUnit) {
       this.selectedUnit =
