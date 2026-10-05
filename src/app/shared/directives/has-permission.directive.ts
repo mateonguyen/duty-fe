@@ -4,10 +4,8 @@ import {
   TemplateRef,
   ViewContainerRef,
   inject,
-  OnInit,
   OnDestroy,
   effect,
-  Injector,
 } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 
@@ -15,32 +13,26 @@ import { AuthService } from '../../core/auth/auth.service';
   selector: '[hasPermission]',
   standalone: true,
 })
-export class HasPermissionDirective implements OnInit, OnDestroy {
+export class HasPermissionDirective implements OnDestroy {
   private auth = inject(AuthService);
   private templateRef = inject(TemplateRef<any>);
   private viewContainer = inject(ViewContainerRef);
-  private injector = inject(Injector);
   private hasView = false;
   private requiredPermissions: string[] = [];
+
+  // Setup effect in field initializer (injection context is available here)
+  private permissionChangeEffect = effect(() => {
+    // Depend on roles signal so directive re-evaluates when permissions change
+    const currentPerms = this.auth.permissions();
+    void currentPerms;
+    this.updateView();
+  });
 
   @Input() set hasPermission(permission: string | string[]) {
     this.requiredPermissions = Array.isArray(permission)
       ? permission
       : [permission];
     this.updateView();
-  }
-
-  ngOnInit() {
-    // Setup effect within injection context
-    effect(
-      () => {
-        // Depend on snapshot & token so directive re-evaluates when whoami or token changes
-        const currentPerms = this.auth.getAllPermissions();
-        void currentPerms;
-        this.updateView();
-      },
-      { injector: this.injector }
-    );
   }
 
   ngOnDestroy() {

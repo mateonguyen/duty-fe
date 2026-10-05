@@ -1,4 +1,10 @@
-import { Component, Input } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -7,14 +13,10 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div
-      *ngIf="isLoading"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
-      [class.hidden]="!isLoading"
+      *ngIf="visible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-teal-900/40 via-teal-800/30 to-teal-900/40 backdrop-blur-sm"
     >
-      <div
-        class="flex flex-col items-center gap-4 p-8 bg-white rounded-lg shadow-2xl"
-      >
-        <!-- Custom spinner container -->
+      <div class="flex flex-col items-center gap-4">
         <div class="spinner-container">
           <ng-container *ngIf="videoUrl; else imageSpinner">
             <video
@@ -23,47 +25,20 @@ import { CommonModule } from '@angular/common';
               loop
               muted
               playsinline
-              class="w-24 h-24 object-contain"
+              class="w-24 h-24 md:w-32 md:h-32 object-contain"
             ></video>
           </ng-container>
           <ng-template #imageSpinner>
             <img
-              *ngIf="imageUrl"
-              [src]="imageUrl"
+              [src]="imageUrl || 'assets/loading.svg'"
               alt="Loading..."
-              class="w-24 h-24 object-contain animate-spin-slow"
+              class="w-24 h-24 md:w-32 md:h-32 object-contain"
             />
-            <!-- Default SVG spinner if no custom asset -->
-            <svg
-              *ngIf="!imageUrl"
-              class="w-16 h-16 text-blue-600 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
           </ng-template>
         </div>
-
-        <!-- Loading text -->
-        <div class="text-center">
-          <p class="text-lg font-semibold text-gray-800">{{ loadingText }}</p>
-          <p *ngIf="subText" class="text-sm text-gray-500 mt-1">
-            {{ subText }}
-          </p>
+        <div *ngIf="loadingText" class="text-center">
+          <p class="text-white text-lg font-semibold mb-1">{{ loadingText }}</p>
+          <p *ngIf="subText" class="text-white/80 text-sm">{{ subText }}</p>
         </div>
       </div>
     </div>
@@ -109,10 +84,53 @@ import { CommonModule } from '@angular/common';
     `,
   ],
 })
-export class LoadingSpinnerComponent {
+export class LoadingSpinnerComponent implements OnChanges, OnDestroy {
   @Input() isLoading = false;
-  @Input() loadingText = 'Đang tải...';
+  @Input() minDurationMs = 600;
+  @Input() imageUrl?: string;
+  @Input() videoUrl?: string;
+  @Input() loadingText?: string;
   @Input() subText?: string;
-  @Input() imageUrl?: string; // Path to custom image (SVG/PNG/GIF)
-  @Input() videoUrl?: string; // Path to custom video
+
+  visible = false;
+
+  private loadingStart = 0;
+  private hideTimer: any = null;
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['isLoading']) return;
+
+    const next = this.isLoading;
+
+    if (next) {
+      // bật loading: hiện ngay và ghi nhận start
+      this.clearHideTimer();
+      this.visible = true;
+      this.loadingStart = Date.now();
+    } else {
+      // tắt loading: đảm bảo đủ minDuration
+      const elapsed = Date.now() - this.loadingStart;
+      const remaining = Math.max(0, this.minDurationMs - elapsed);
+
+      if (remaining === 0) {
+        this.visible = false;
+      } else {
+        this.hideTimer = setTimeout(() => {
+          this.visible = false;
+          this.hideTimer = null;
+        }, remaining);
+      }
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.clearHideTimer();
+  }
+
+  private clearHideTimer() {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+  }
 }

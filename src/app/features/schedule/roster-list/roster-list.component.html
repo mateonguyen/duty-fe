@@ -1,20 +1,16 @@
-<app-loading-spinner
-  [isLoading]="loading()"
-  loadingText="Đang tải danh sách lịch trực..."
-></app-loading-spinner>
+<app-loading-spinner [isLoading]="loading()"></app-loading-spinner>
 
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
-<main class="h-[calc(100vh-48px)] flex flex-col bg-gray-50">
-  <div
-    class="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between"
-  >
+<main class="roster-list-page h-[calc(100vh-48px)] flex flex-col">
+  <div class="roster-page-header flex items-center justify-between">
     <!-- LEFT SIDE: title + scope-picker -->
-    <div class="flex items-center gap-3">
-      <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
-        <i class="pi pi-calendar text-blue-600"></i>
+    <div class="roster-title-scope flex items-center gap-3">
+      <h1 class="ui-page-title flex items-center gap-2">
+        <i class="pi pi-calendar" aria-hidden="true"></i>
         Danh sách kỳ lịch trực
-      </h3>
+      </h1>
+      <span class="roster-subtitle">Quản lý và phân công theo kỳ lịch.</span>
       <!-- Scope Picker -->
       <app-scope-picker
         class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
@@ -24,6 +20,7 @@
       />
     </div>
     <a
+      *ngIf="canCreate()"
       pButton
       label="Tạo lịch"
       icon="pi pi-plus"
@@ -31,15 +28,15 @@
     ></a>
   </div>
 
-  <div class="flex-1 overflow-auto px-4 py-3">
+  <div class="roster-list-content flex-1 overflow-auto">
     <p-table
       [value]="filteredRosters"
       [loading]="loading()"
       dataKey="id"
-      [paginator]="true"
+      [paginator]="filteredRosters.length > 10"
       [rows]="10"
       [rowsPerPageOptions]="[10, 25, 50]"
-      [showCurrentPageReport]="true"
+      [showCurrentPageReport]="filteredRosters.length > 10"
       currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
       [globalFilterFields]="['name', 'scopeUnitName', 'defaultLocationName']"
       styleClass="catalog-table"
@@ -47,8 +44,8 @@
       #dt
     >
       <ng-template pTemplate="caption">
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
+        <div class="roster-filters flex items-center justify-between gap-3">
+          <div class="roster-filter-controls flex items-center gap-2">
             <p-dropdown
               [(ngModel)]="selectedYear"
               [options]="yearOptions"
@@ -56,7 +53,7 @@
               optionValue="value"
               (onChange)="onFilterChange()"
               placeholder="Chọn năm"
-              [style]="{ width: '200px' }"
+              [style]="{ width: '130px' }"
               [appendTo]="'body'"
               panelStyleClass="compact-panel"
             ></p-dropdown>
@@ -67,7 +64,7 @@
               optionValue="value"
               (onChange)="onFilterChange()"
               placeholder="Chọn tháng"
-              [style]="{ width: '200px' }"
+              [style]="{ width: '130px' }"
               [appendTo]="'body'"
               panelStyleClass="compact-panel"
             ></p-dropdown>
@@ -78,7 +75,7 @@
               optionValue="value"
               placeholder="Chọn trạng thái"
               [showClear]="false"
-              [style]="{ width: '220px' }"
+              [style]="{ width: '175px' }"
               [appendTo]="'body'"
               panelStyleClass="wide-panel"
             ></p-dropdown>
@@ -92,13 +89,13 @@
               class="p-button-sm"
             ></button>
           </div>
-          <span class="p-input-icon-left" style="width: 320px">
+          <span class="p-input-icon-left roster-search">
             <i class="pi pi-search"></i>
             <input
               pInputText
               type="text"
               (input)="onSearch($any($event.target).value)"
-              placeholder="Tìm kiếm..."
+              placeholder="Tìm tên kỳ lịch, đơn vị, địa điểm..."
               style="width: 100%; padding-left: 2.5rem"
               #searchInput
             />
@@ -159,7 +156,7 @@
                   ? '/schedule/rosters/' + r.id + '/edit'
                   : '/schedule/view/' + r.id
               "
-              class="text-blue-600 hover:underline font-medium"
+              class="roster-name-link font-medium"
               [pTooltip]="formatRosterName(r)"
               tooltipPosition="top"
               >{{ formatRosterName(r) }}</a
@@ -172,11 +169,11 @@
               tooltipPosition="top"
               >{{ r.defaultLocationName }}</span
             >
-            <span *ngIf="!r.defaultLocationName" class="text-slate-400 italic"
+            <span *ngIf="!r.defaultLocationName" class="text-slate-400"
               >Chưa chọn</span
             >
           </td>
-          <td class="text-slate-700 font-mono text-sm">
+          <td class="text-slate-700 text-sm">
             <span
               [pTooltip]="
                 (r.periodStart | date : 'dd/MM/yyyy') +
@@ -215,7 +212,7 @@
               class="inline-flex items-center justify-center"
               style="white-space: nowrap; gap: 2px"
             >
-              <!-- LEFT GROUP: Safe actions (Edit, View, Clone) -->
+              <!-- Xem và sửa -->
               <div
                 class="inline-flex items-center"
                 style="gap: 2px; margin-right: 8px"
@@ -236,10 +233,7 @@
                   [style.width.px]="32"
                   [style.height.px]="32"
                 ></button>
-                <span
-                  *ngIf="!showEdit(r)"
-                  style="width: 32px; height: 32px; display: inline-block"
-                ></span>
+                
 
                 <!-- 2. View -->
                 <button
@@ -248,19 +242,6 @@
                   class="p-button-text p-button-sm text-slate-600"
                   [routerLink]="'/schedule/view/' + r.id"
                   pTooltip="Xem chi tiết"
-                  tooltipPosition="top"
-                  [style.width.px]="32"
-                  [style.height.px]="32"
-                ></button>
-
-                <!-- 3. Clone -->
-                <button
-                  *ngIf="showClone(r)"
-                  pButton
-                  icon="pi pi-copy"
-                  class="p-button-text p-button-sm text-indigo-600"
-                  (click)="clone(r)"
-                  pTooltip="Nhân bản kỳ lịch"
                   tooltipPosition="top"
                   [style.width.px]="32"
                   [style.height.px]="32"
@@ -287,13 +268,11 @@
                   [style.width.px]="32"
                   [style.height.px]="32"
                 ></button>
-                <span
-                  *ngIf="!canPublish(r)"
-                  style="width: 32px; height: 32px; display: inline-block"
-                ></span>
+                
 
-                <!-- 5. Lock / Unlock -->
+                <!-- 5. Lock -->
                 <button
+                  *ngIf="showLockIcon(r)"
                   pButton
                   [icon]="isLockDisabled(r) ? 'pi pi-lock' : 'pi pi-lock-open'"
                   class="p-button-text p-button-sm"
@@ -320,14 +299,21 @@
                   [style.width.px]="32"
                   [style.height.px]="32"
                 ></button>
-                <span
-                  *ngIf="!showDelete(r)"
-                  style="width: 32px; height: 32px; display: inline-block"
-                ></span>
+                
               </div>
             </div>
           </td>
         </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr><td [attr.colspan]="showUnitColumn() ? 7 : 6" class="roster-empty-cell">
+          <div class="roster-empty-state">
+            <i class="pi pi-calendar" aria-hidden="true"></i>
+            <strong>Chưa có kỳ lịch trực phù hợp</strong>
+            <span>Thử đổi tháng, năm, trạng thái hoặc tạo kỳ lịch mới.</span>
+            <a *ngIf="canCreate()" pButton routerLink="/schedule/rosters/new" label="Tạo kỳ lịch" icon="pi pi-plus"></a>
+          </div>
+        </td></tr>
       </ng-template>
     </p-table>
   </div>

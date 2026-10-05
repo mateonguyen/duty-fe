@@ -97,7 +97,8 @@
   }
 
   .pill-time {
-    font-family: "Courier New", monospace;
+    font-family: var(--app-font-family);
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
     opacity: 0.9;
   }
@@ -391,7 +392,8 @@
   font-size: 11px;
   opacity: 0.85;
   font-weight: 400;
-  font-family: "Courier New", monospace;
+  font-family: var(--app-font-family);
+  font-variant-numeric: tabular-nums;
 }
 
 // ============================================================================
@@ -408,7 +410,8 @@
   border-radius: 16px;
   font-size: 0.875rem;
   color: #475569;
-  font-family: "Courier New", monospace;
+  font-family: var(--app-font-family);
+  font-variant-numeric: tabular-nums;
 
   .pi-calendar {
     font-size: 0.875rem;
@@ -703,4 +706,70 @@
   .shift-time {
     font-size: 10px;
   }
+}
+
+// Read-only roster: clear context, explicit filters, and a compact month grid.
+.roster-view-container { padding: 14px; }
+.roster-view-card { gap: 12px; padding: 16px 18px; border: 1px solid #e2eae5; border-radius: 10px; }
+.roster-view__header { align-items: center; padding-bottom: 12px; }
+.roster-title-block { gap: 5px; }
+.roster-view__eyebrow { color: #087348; font-size: 10px; font-weight: 750; letter-spacing: .09em; }
+.roster-view__title { font-size: clamp(18px, 1.25vw, 22px); font-weight: 700; color: #163b2a; }
+.roster-view__meta { flex-wrap: wrap; gap: 5px 18px; font-size: 12px; }
+.roster-view__meta span { display: inline-flex; align-items: center; gap: 6px; }
+.roster-view__meta i { color: #22845a; font-size: 12px; }
+.roster-view__header-right { flex-wrap: wrap; justify-content: flex-end; }
+.view-mode-group { flex: none; }
+.view-mode-group button { min-height: 34px; padding-inline: 10px !important; font-size: 12px !important; }
+.roster-status { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 10px; border: 1px solid #b8ddc6; border-radius: 6px; background: #eaf8ef; color: #087348; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.roster-status--draft { border-color: #ead8af; background: #fff7e7; color: #966013; }
+.roster-view__filters { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 18px; min-height: 52px; padding: 7px 12px; border-color: #dce8e0; }
+.filter-row { display: flex; flex: 0 1 auto; align-items: center; flex-wrap: nowrap; gap: 10px; min-width: 0; min-height: 36px; padding: 0; }
+.filter-row + .filter-row { border-top: 0; border-left: 1px solid #dce8e0; padding-left: 18px; }
+.filter-heading { display: flex; flex: 0 0 auto; align-items: center; white-space: nowrap; }
+.filter-heading span { color: #294c38; font-size: 12px; font-weight: 700; }
+.location-tabs-wrapper, .shift-tabs-wrapper { flex: 0 1 auto; min-width: 0; align-items: center; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.location-tab-pill, .shift-tab-pill { min-height: 32px !important; padding: 5px 11px !important; border-radius: 7px !important; font-size: 12px !important; box-shadow: none !important; transform: none !important; }
+.shift-tab-content { gap: 1px; }
+.shift-name { font-size: 12px; }
+.shift-time { font-size: 10px; }
+.roster-view__calendar { border-color: #dce5df; }
+.calendar-context { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 44px; padding: 7px 12px; border-bottom: 1px solid #dce5df; background: #f7faf8; }
+.calendar-context__selection { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 5px 8px; min-width: 0; }
+.calendar-context__selection strong { color: #0a6843; font-size: 13px; }
+.calendar-context__selection span { color: #547061; font-size: 11px; }
+.calendar-context__count { padding: 3px 7px; border-radius: 5px; background: #e7f3eb; color: #087348; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.calendar-context__legend { display: inline-flex; gap: 12px; margin-left: auto; color: #547061; font-size: 11px; white-space: nowrap; }
+.calendar-context__legend span { display: inline-flex; align-items: center; gap: 4px; }
+.calendar-context__legend .pi { color: #e1a821; font-size: 10px; }
+.legend-staff { width: 10px; height: 10px; border: 1px solid #bfcfc4; border-radius: 50%; background: #fff; }
+.calendar-context__hint { color: #72877a; font-size: 11px; white-space: nowrap; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-container { min-height: 480px; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-header { background: #f3f7f4; }
+.roster-view__calendar ::ng-deep app-month-board .header-cell { padding: 9px 6px; font-size: 12px; color: #355541; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-week { min-height: 108px; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-cell { min-height: 108px; padding: 8px; border-color: #e5ece7; background: #fff; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-cell.out-of-range { background: #f5f7f6; }
+.roster-view__calendar ::ng-deep app-month-board .calendar-cell.is-today { background: #ecf8f0; border-color: #75b98f; border-radius: 0; }
+.roster-view__calendar ::ng-deep app-month-board .assignment-chip { font-size: 12px; }
+
+@media (max-width: 1024px) {
+  .roster-view__header-right { justify-content: flex-start; }
+}
+@media (max-width: 768px) {
+  .roster-view-container { padding: 8px; }
+  .roster-view-card { padding: 12px; }
+  .roster-view__filters { padding: 8px; gap: 8px; }
+  .filter-row { flex: 1 1 100%; flex-direction: row; align-items: center; }
+  .filter-row + .filter-row { border-left: 0; border-top: 1px solid #edf2ee; padding-left: 0; padding-top: 8px; }
+  .filter-heading { min-width: 62px; }
+  .location-tabs-wrapper, .shift-tabs-wrapper { width: auto; }
+  .calendar-context__legend { margin-left: 0; }
+  .roster-view__calendar ::ng-deep app-month-board .calendar-container { min-width: 700px; }
+}
+@media (max-width: 480px) {
+  .roster-view__header-right { flex-direction: row; }
+  .btn-exit, .view-mode-group, .btn-publish { width: auto; }
+  .view-mode-group { flex: 1 1 100%; }
+  .view-mode-group button { flex: 1; }
 }

@@ -65,7 +65,7 @@ export type RosterStatus = 'DRAFT' | 'PUBLISHED' | 'LOCKED';
 export interface RosterListItem {
   id: number;
   name: string;
-  scopeUnitId: number;
+  scopeCode: string;
   scopeUnitName: string;
   periodStart: string; // DateOnly from backend "YYYY-MM-DD"
   periodEnd: string;

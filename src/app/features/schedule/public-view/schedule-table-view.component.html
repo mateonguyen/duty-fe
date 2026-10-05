@@ -1,14 +1,11 @@
 <div class="roster-table-wrapper">
-  <!-- Toolbar with axis toggle -->
+  <!-- Toolbar with mode toggle -->
   <div class="table-toolbar">
     <div class="table-toolbar__info">
-      <span class="toolbar-label">
-        {{
-          axisMode === "shift-columns"
-            ? "Hiển thị theo ca trực"
-            : "Hiển thị theo địa điểm"
-        }}
-      </span>
+      <div class="toolbar-mode">
+        <span class="toolbar-label">{{ getModeLabel() }}</span>
+        <span class="toolbar-description">{{ getModeDescription() }}</span>
+      </div>
       <span class="toolbar-count">({{ currentColumns.length }} cột)</span>
     </div>
     <button
@@ -16,9 +13,9 @@
       type="button"
       [icon]="getToggleButtonIcon()"
       [label]="getToggleButtonLabel()"
-      class="p-button-sm p-button-outlined table-axis-toggle"
-      (click)="toggleAxisMode()"
-      pTooltip="Hoán đổi trục hiển thị giữa Ca trực và Địa điểm"
+      class="p-button-sm p-button-outlined table-mode-toggle"
+      (click)="toggleViewMode()"
+      [pTooltip]="'Chuyển đổi giữa xem theo ca trực và xem theo địa điểm'"
       tooltipPosition="bottom"
     ></button>
   </div>

@@ -38,12 +38,18 @@ export class OrganizationService {
   }
 
   fetchAllWithStaff(
-    rootOrgCode?: string
+    rootOrgCode?: string,
+    includeChildren: boolean = true
   ): Observable<OrgUnitNodeWithStaffDto[]> {
     this.loading.set(true);
     let url = '/api/orgunits/tree-with-staff';
+    const params: string[] = [];
     if (rootOrgCode) {
-      url += `?rootOrgCode=${encodeURIComponent(rootOrgCode)}`;
+      params.push(`rootOrgCode=${encodeURIComponent(rootOrgCode)}`);
+    }
+    params.push(`includeChildren=${includeChildren}`);
+    if (params.length > 0) {
+      url += '?' + params.join('&');
     }
     return this.http.get<OrgUnitNodeWithStaffDto[]>(url);
   }

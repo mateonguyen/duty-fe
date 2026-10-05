@@ -7,6 +7,8 @@ export interface PermissionDto {
 }
 
 export interface RoleDto {
+  id?: number;
+  permissionCount?: number;
   code: string;
   name: string;
   isSystemRole?: boolean;

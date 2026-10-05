@@ -1,0 +1,389 @@
+.file-view-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  flex: 1 1 auto; // Cho phép flex grow và shrink
+  min-width: 0; // Quan trọng để flex hoạt động đúng
+  min-height: 0; // Quan trọng để flex hoạt động đúng
+
+  // Header
+  .file-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .file-header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+
+      .file-icon {
+        font-size: 24px;
+        color: #ffffff;
+        flex-shrink: 0;
+      }
+
+      .file-details {
+        flex: 1;
+        min-width: 0;
+
+        .file-name {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #ffffff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.4;
+        }
+
+        .file-type {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+          display: block;
+          margin-top: 2px;
+        }
+      }
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+
+      .action-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.5);
+          transform: translateY(-1px);
+        }
+
+        ::ng-deep .p-button-icon {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  // Loading State
+  .loading-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    min-height: 600px;
+
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+
+      .loading-spinner {
+        font-size: 48px;
+        color: #667eea;
+        animation: spin 1s linear infinite;
+      }
+
+      .loading-text {
+        color: #6c757d;
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0;
+      }
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  // Error State
+  .error-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    min-height: 600px;
+    padding: 32px;
+
+    .error-content {
+      text-align: center;
+      max-width: 400px;
+
+      .error-icon {
+        font-size: 64px;
+        color: #dc3545;
+        margin-bottom: 16px;
+      }
+
+      .error-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #212529;
+        margin: 0 0 8px 0;
+      }
+
+      .error-message {
+        font-size: 14px;
+        color: #6c757d;
+        margin: 0 0 24px 0;
+        line-height: 1.5;
+      }
+
+      .retry-btn {
+        background: #667eea;
+        border: none;
+        color: #ffffff;
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #5568d3;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+      }
+    }
+  }
+
+  // PDF Viewer
+  .pdf-viewer-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #e9ecef;
+    overflow: hidden;
+    position: relative;
+    min-height: 600px; // Chiều cao tối thiểu cho viewer
+
+    .pdf-viewer-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      min-height: 600px;
+
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(233, 236, 239, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+
+        .loading-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+
+          .loading-spinner {
+            font-size: 48px;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+          }
+
+          .loading-text {
+            color: #495057;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0;
+          }
+        }
+      }
+
+      .pdf-viewer {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+        display: block;
+
+        ::ng-deep {
+          iframe {
+            border: none;
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+          }
+
+          // Đảm bảo PDF viewer chiếm đủ không gian
+          .pdfViewer {
+            width: 100% !important;
+            height: 100% !important;
+          }
+        }
+      }
+    }
+  }
+
+  // Empty State
+  .empty-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e9ecef;
+    min-height: 600px;
+    border-radius: 8px;
+
+    .empty-content {
+      text-align: center;
+
+      .empty-icon {
+        font-size: 64px;
+        color: #adb5bd;
+        margin-bottom: 16px;
+      }
+
+      .empty-text {
+        font-size: 18px;
+        font-weight: 500;
+        color: #495057;
+        margin: 0 0 8px 0;
+      }
+
+      .empty-hint {
+        font-size: 14px;
+        color: #6c757d;
+        display: block;
+      }
+    }
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .file-view-container {
+    .file-header {
+      padding: 12px 16px;
+
+      .file-info {
+        .file-icon {
+          font-size: 20px;
+        }
+
+        .file-details {
+          .file-name {
+            font-size: 14px;
+          }
+
+          .file-type {
+            font-size: 11px;
+          }
+        }
+      }
+
+      .file-actions {
+        .action-btn {
+          width: 32px;
+          height: 32px;
+
+          ::ng-deep .p-button-icon {
+            font-size: 14px;
+          }
+        }
+      }
+    }
+
+    .loading-container,
+    .error-container,
+    .empty-container {
+      min-height: 400px;
+      padding: 24px;
+    }
+
+    .pdf-viewer-wrapper {
+      min-height: 400px;
+
+      .pdf-viewer-container {
+        min-height: 400px;
+
+        .pdf-viewer {
+          min-height: 400px;
+
+          ::ng-deep {
+            iframe {
+              min-height: 400px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dark mode support (optional)
+@media (prefers-color-scheme: dark) {
+  .file-view-container {
+    background: #1e1e1e;
+
+    .pdf-viewer-wrapper {
+      background: #2d2d2d;
+    }
+
+    .loading-container,
+    .error-container,
+    .empty-container {
+      background: #1e1e1e;
+    }
+
+    .error-content {
+      .error-title {
+        color: #ffffff;
+      }
+
+      .error-message {
+        color: #adb5bd;
+      }
+    }
+
+    .empty-content {
+      .empty-text {
+        color: #e9ecef;
+      }
+
+      .empty-hint {
+        color: #adb5bd;
+      }
+    }
+  }
+}

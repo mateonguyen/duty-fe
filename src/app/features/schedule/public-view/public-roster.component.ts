@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -59,7 +59,12 @@ export class PublicRosterComponent {
   selectedShiftId = signal<number | null>(null);
   assignments = signal<AssignmentRead[]>([]);
   loading = signal(true);
+  loadError = signal(false);
   viewMode = signal<'calendar' | 'table'>('calendar');
+
+  // Table view mode: track which view mode the table is in
+  tableViewMode = signal<'byShift' | 'byLocation'>('byShift');
+
   options = computed(() =>
     this.shifts().map((s) => ({ label: s.name, value: s.id }))
   );
@@ -94,6 +99,10 @@ export class PublicRosterComponent {
 
   periodFrom = computed(() => this.roster()?.periodStart ?? '');
   periodTo = computed(() => this.roster()?.periodEnd ?? '');
+  assignmentCount = computed(() => this.assignments().length);
+  visibleAssignmentCount = computed(() => this.assignments().filter(a =>
+    (this.selectedShiftId() === null || a.shiftId === this.selectedShiftId()) &&
+    (this.selectedLocationId() === null || a.locationId === this.selectedLocationId())).length);
 
   // Format period as "Tháng 11/2025"
   formatPeriodMonth = computed(() => {
@@ -108,23 +117,31 @@ export class PublicRosterComponent {
   canPublish = computed(() => this.auth.hasPermission('roster.publish'));
 
   // Publish button state
-  isPublished = computed(() => this.roster()?.status === 'PUBLISHED');
-  publishButtonLabel = computed(() =>
-    this.isPublished() ? 'Đã công bố' : 'Xuất bản'
-  );
-  publishButtonDisabled = computed(() => this.isPublished());
+  statusLabel = computed(() => this.roster()?.status === 'LOCKED' ? 'Đã khóa'
+    : this.roster()?.status === 'PUBLISHED' ? 'Đã công bố' : 'Bản nháp');
 
   ngOnInit() {
+    this.loadRoster();
+  }
+
+  loadRoster() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    if (!id) return;
+    if (!id) {
+      this.loading.set(false);
+      this.loadError.set(true);
+      return;
+    }
 
     this.loading.set(true);
+    this.loadError.set(false);
+    this.roster.set(null);
     this.api.getById(id).subscribe({
       next: (meta) => {
         this.roster.set(meta);
       },
       error: () => {
         this.loading.set(false);
+        this.loadError.set(true);
       },
     });
 
@@ -197,34 +214,10 @@ export class PublicRosterComponent {
       },
       error: () => {
         this.loading.set(false);
+        this.loadError.set(true);
       },
     });
   }
-  // Debug signals to verify filters/data across views
-  _debug = effect(() => {
-    // Only log when data is present
-    const total = this.assignments().length;
-    if (!total) return;
-    const loc = this.selectedLocationId();
-    const sh = this.selectedShiftId();
-    const calCount = this.assignments().filter(
-      (a) =>
-        (loc == null || a.locationId === loc) &&
-        (sh == null || a.shiftId === sh)
-    ).length;
-    const tableCount = this.assignments().filter(
-      (a) => loc == null || a.locationId === loc
-    ).length;
-    // eslint-disable-next-line no-console
-    console.debug('[PublicRoster] state', {
-      viewMode: this.viewMode(),
-      selectedLocationId: loc,
-      selectedShiftId: sh,
-      assignmentsTotal: total,
-      calendarVisibleAssignments: calCount,
-      tableVisibleAssignments: tableCount,
-    });
-  });
 
   goBack() {
     this.location.back();
@@ -239,10 +232,44 @@ export class PublicRosterComponent {
 
     this.router.navigate(['/schedule/monitoring'], {
       queryParams: {
-        unitId: roster.scopeUnitId,
-        rosterId: roster.id,
+        unitId: roster.scopeCode,
       },
     });
+  }
+
+  /**
+   * Switch between calendar and table view
+   * Reset filters appropriately for table view mode
+   */
+  switchViewMode(mode: 'calendar' | 'table') {
+    const previousMode = this.viewMode();
+    this.viewMode.set(mode);
+
+    if (mode === 'calendar') {
+      if (this.selectedShiftId() === null) this.selectedShiftId.set(this.shifts()[0]?.id ?? null);
+      if (this.selectedLocationId() === null) this.selectedLocationId.set(this.locations()[0]?.id ?? null);
+      return;
+    }
+
+    // When switching TO table view, reset filters based on table mode
+    if (mode === 'table' && previousMode === 'calendar') {
+      const tableMode = this.tableViewMode();
+      if (tableMode === 'byShift') {
+        // Table columns = shifts, filter = locations
+        // Keep location selection, clear shift
+        this.selectedShiftId.set(null);
+        if (this.selectedLocationId() === null && this.locations().length > 0) {
+          this.selectedLocationId.set(this.locations()[0].id);
+        }
+      } else {
+        // Table columns = locations, filter = shifts
+        // Keep shift selection, clear location
+        this.selectedLocationId.set(null);
+        if (this.selectedShiftId() === null && this.shifts().length > 0) {
+          this.selectedShiftId.set(this.shifts()[0].id);
+        }
+      }
+    }
   }
 
   goToEdit() {
@@ -254,7 +281,7 @@ export class PublicRosterComponent {
 
   handlePublish() {
     const id = this.roster()?.id;
-    if (!id || this.isPublished()) return;
+    if (!id || this.roster()?.status !== 'DRAFT') return;
 
     this.api.publish(id).subscribe({
       next: () => {
@@ -276,5 +303,37 @@ export class PublicRosterComponent {
         });
       },
     });
+  }
+
+  /**
+   * Handle table view mode change from child component
+   * Updates parent state to control filter display
+   */
+  onTableViewModeChange(mode: 'byShift' | 'byLocation') {
+    const previousMode = this.tableViewMode();
+    this.tableViewMode.set(mode);
+
+    // Only auto-select when mode actually changes (not on initial emit)
+    if (previousMode === mode) return;
+
+    if (mode === 'byShift') {
+      // Columns = shifts, FILTER = locations
+      // Auto-select first location if none selected
+      const currentLoc = this.selectedLocationId();
+      if (currentLoc === null && this.locations().length > 0) {
+        this.selectedLocationId.set(this.locations()[0].id);
+      }
+      // Clear shift selection (not used in this mode)
+      this.selectedShiftId.set(null);
+    } else {
+      // Columns = locations, FILTER = shifts
+      // Auto-select first shift if none selected
+      const currentShift = this.selectedShiftId();
+      if (currentShift === null && this.shifts().length > 0) {
+        this.selectedShiftId.set(this.shifts()[0].id);
+      }
+      // Clear location selection (not used in this mode)
+      this.selectedLocationId.set(null);
+    }
   }
 }

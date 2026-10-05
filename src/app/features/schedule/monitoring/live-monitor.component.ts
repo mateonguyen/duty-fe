@@ -5,23 +5,27 @@ import {
   inject,
   signal,
   computed,
+  ElementRef,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { DutyApiService } from '../../../core/api/duty-api.service';
+import { OrgUnitNodeDto } from '../../../shared/models/org-unit';
 import {
   DutyMonitoringDto,
   DutyShiftDto,
   RosterApiService,
 } from '../roster-api.service';
-import { ScopeService, ScopeRef } from '../../../core/services/scope.service';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { SkeletonModule } from 'primeng/skeleton';
+import { SkeletonModule } from 'primeng/skeleton'; // retained for potential partial placeholders
 import { TooltipModule } from 'primeng/tooltip';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { trigger, transition, style, animate } from '@angular/animations';
+import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
+import { finalize } from 'rxjs';
 
 /**
  * Live Monitoring Component
@@ -31,7 +35,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
  * - 2-tier layout: Unit → Location → Staff list
  * - Real-time clock display
  * - Auto-refresh with live time update
- * - Multi-select unit filtering
+ * - Hierarchical unit filtering
  */
 @Component({
   standalone: true,
@@ -39,8 +43,8 @@ import { trigger, transition, style, animate } from '@angular/animations';
   imports: [
     CommonModule,
     FormsModule,
-    MultiSelectModule,
     SkeletonModule,
+    LoadingSpinnerComponent,
     TooltipModule,
     CardModule,
     ButtonModule,
@@ -59,15 +63,20 @@ import { trigger, transition, style, animate } from '@angular/animations';
 })
 export class LiveMonitorComponent implements OnInit, OnDestroy {
   private api = inject(RosterApiService);
-  private scopeService = inject(ScopeService);
+  private directory = inject(DutyApiService);
   private route = inject(ActivatedRoute);
+  private element = inject(ElementRef<HTMLElement>);
 
   // State management
+  // Unified page loading state (overlay spinner)
   loading = signal(false);
-  showSkeleton = signal(false);
   units = signal<DutyMonitoringDto[]>([]);
-  scopes = signal<ScopeRef[]>([]);
-  selectedUnits = signal<string[]>([]);
+  orgTree = signal<OrgUnitNodeDto[]>([]);
+  private orgTreeLoaded = signal(false);
+  private monitorLoaded = signal(false);
+  selectedUnit = signal('');
+  filterOpen = signal(false);
+  expandedFilterUnits = new Set<string>();
 
   // Timer management
   refreshTimer: any;
@@ -88,12 +97,77 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
   isFullscreen = signal(false);
 
   // Computed properties
-  filteredUnits = computed(() => {
-    const selected = this.selectedUnits();
-    const all = this.units();
-    if (selected.length === 0) return all;
-    return all.filter((u) => selected.includes(u.unitCode));
+  filterTree = computed(() => {
+    const active = new Set(this.units().map(unit => unit.unitCode));
+    const prune = (node: OrgUnitNodeDto): OrgUnitNodeDto | null => {
+      const children = (node.children || []).map(prune).filter((child): child is OrgUnitNodeDto => child !== null);
+      return active.has(node.code) || children.length ? { ...node, children } : null;
+    };
+    const tree = this.orgTree().map(prune).filter((node): node is OrgUnitNodeDto => node !== null);
+    const included = new Set<string>();
+    const visit = (node: OrgUnitNodeDto) => { included.add(node.code); node.children.forEach(visit); };
+    tree.forEach(visit);
+    return [...tree, ...this.units().filter(unit => !included.has(unit.unitCode)).map(unit => ({
+      id: 0, code: unit.unitCode, name: unit.unitName, children: [],
+    }))];
   });
+
+  private unitHierarchy = computed(() => {
+    const result = new Map<string, { order: number; parent: string }>();
+    let order = 0;
+    const visit = (nodes: OrgUnitNodeDto[], parent = '') => {
+      for (const node of nodes) {
+        result.set(node.code, { order: order++, parent });
+        visit(node.children || [], node.name);
+      }
+    };
+    visit(this.orgTree());
+    return result;
+  });
+
+  selectedUnitLabel = computed(() => {
+    const code = this.selectedUnit();
+    if (!code) return `Tất cả đơn vị (${this.units().length})`;
+    const find = (nodes: OrgUnitNodeDto[]): string | null => {
+      for (const node of nodes) {
+        if (node.code === code) return node.name;
+        const child = find(node.children);
+        if (child) return child;
+      }
+      return null;
+    };
+    return find(this.filterTree()) || code;
+  });
+
+  filteredUnits = computed(() => {
+    const selected = this.selectedUnit();
+    const all = this.units();
+    if (!selected) return this.sortUnits(all);
+    const codes = new Set<string>();
+    const collect = (node: OrgUnitNodeDto) => { codes.add(node.code); node.children.forEach(collect); };
+    const find = (nodes: OrgUnitNodeDto[]): boolean => {
+      for (const node of nodes) {
+        if (node.code === selected) { collect(node); return true; }
+        if (find(node.children)) return true;
+      }
+      return false;
+    };
+    find(this.filterTree());
+    return this.sortUnits(all.filter(unit => codes.has(unit.unitCode)));
+  });
+
+  private sortUnits(units: DutyMonitoringDto[]): DutyMonitoringDto[] {
+    const hierarchy = this.unitHierarchy();
+    return [...units].sort((a, b) =>
+      (hierarchy.get(a.unitCode)?.order ?? Number.MAX_SAFE_INTEGER) - (hierarchy.get(b.unitCode)?.order ?? Number.MAX_SAFE_INTEGER)
+      || a.unitName.localeCompare(b.unitName, 'vi'));
+  }
+
+  parentUnitName(code: string): string { return this.unitHierarchy().get(code)?.parent || ''; }
+
+  unitStaffCount(unit: DutyMonitoringDto): number {
+    return unit.locations.reduce((total, location) => total + this.getLocationStaff(location).leaders.length + this.getLocationStaff(location).staff.length, 0);
+  }
 
   // Format current time for display
   formattedTime = computed(() => {
@@ -124,15 +198,20 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
     // Read query params for unit filtering
     this.route.queryParams.subscribe((params) => {
       if (params['unitId']) {
-        this.selectedUnits.set([params['unitId']]);
+        this.selectedUnit.set(params['unitId']);
       }
     });
 
-    this.scopeService.load('roster.view').subscribe({
-      next: (items) => this.scopes.set(items),
-      error: () => this.scopes.set([]),
-    });
     this.load();
+    this.directory.getOrgTree().subscribe({
+      next: tree => {
+        this.orgTree.set(tree);
+        tree.forEach(node => this.expandedFilterUnits.add(node.code));
+        this.orgTreeLoaded.set(true);
+        this.reconcileFilter();
+      },
+      error: () => { this.orgTree.set([]); this.orgTreeLoaded.set(true); this.reconcileFilter(); },
+    });
     this.startAutoRefresh();
     this.startClock();
     this.setupFullscreenListener();
@@ -143,12 +222,24 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
     this.stopClock();
   }
 
+  @HostListener('document:click', ['$event'])
+  closeFilterOnOutsideClick(event: MouseEvent): void {
+    if (!this.element.nativeElement.querySelector('.unit-filter')?.contains(event.target as Node)) {
+      this.filterOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeFilterOnEscape(): void {
+    this.filterOpen.set(false);
+  }
+
   /**
    * Start clock timer (updates every second)
    */
   private startClock(): void {
     this.clockTimer = setInterval(() => {
-      this.currentTime.set(new Date());
+      if (this.isLiveMode()) this.currentTime.set(new Date());
     }, 1000);
   }
 
@@ -194,6 +285,8 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
       this.startAutoRefresh();
     } else {
       this.stopAutoRefresh();
+      this.selectedTime = this.nowLocal();
+      this.currentTime.set(new Date(this.selectedTime));
     }
   }
 
@@ -211,7 +304,7 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
   manualRefresh(): void {
     this.stopAutoRefresh();
     this.load();
-    this.startAutoRefresh();
+    if (this.isLiveMode()) this.startAutoRefresh();
   }
 
   /**
@@ -220,16 +313,10 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
   load(spin = true): void {
     if (spin) {
       this.loading.set(true);
-      this.showSkeleton.set(true);
-      // Minimum 2s skeleton display for better UX
-      setTimeout(() => this.showSkeleton.set(false), 2000);
     }
 
     // Reset countdown when loading
     this.countdown.set(30);
-
-    const selected = this.selectedUnits();
-    const unitCode = selected.length === 1 ? selected[0] : undefined;
 
     // Use current time or selected time
     const timeToUse = this.isLiveMode()
@@ -240,18 +327,47 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
     this.api
       .getMonitoringLive({
         atTime: isoTimestamp,
-        unitCode: unitCode,
       })
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {
           this.units.set(res);
-          this.loading.set(false);
+          this.monitorLoaded.set(true);
+          this.reconcileFilter();
         },
         error: () => {
-          this.loading.set(false);
-          this.showSkeleton.set(false);
+          // errors handled by global/toasts elsewhere
         },
       });
+  }
+
+  private containsFilterCode(nodes: OrgUnitNodeDto[], code: string): boolean {
+    return nodes.some(node => node.code === code || this.containsFilterCode(node.children, code));
+  }
+
+  private reconcileFilter(): void {
+    if (this.orgTreeLoaded() && this.monitorLoaded() && this.selectedUnit()
+      && !this.containsFilterCode(this.filterTree(), this.selectedUnit())) {
+      this.selectedUnit.set('');
+    }
+  }
+
+  selectFilterUnit(code: string): void {
+    this.selectedUnit.set(code);
+    this.filterOpen.set(false);
+  }
+
+  toggleFilterNode(code: string): void {
+    this.expandedFilterUnits.has(code) ? this.expandedFilterUnits.delete(code) : this.expandedFilterUnits.add(code);
+  }
+
+  isFilterNodeExpanded(code: string): boolean {
+    return this.expandedFilterUnits.has(code);
+  }
+
+  activeUnitCount(node: OrgUnitNodeDto): number {
+    const active = this.units().some(unit => unit.unitCode === node.code) ? 1 : 0;
+    return active + node.children.reduce((sum, child) => sum + this.activeUnitCount(child), 0);
   }
 
   /**
@@ -307,18 +423,9 @@ export class LiveMonitorComponent implements OnInit, OnDestroy {
       return { status: 'empty', label: 'Trống', icon: '🔴' };
     }
 
-    // Check if all required roles are filled
-    let requiredRoles = 0;
-    let filledRoles = 0;
-
-    location.shifts?.forEach((shift: any) => {
-      shift.roles?.forEach((role: any) => {
-        requiredRoles++;
-        if (role.staffDisplayName) filledRoles++;
-      });
-    });
-
-    if (filledRoles === requiredRoles && requiredRoles > 0) {
+    // The API compares staffing with MinStaff and RequireLeader for each active shift.
+    const shifts: DutyShiftDto[] = location.shifts || [];
+    if (shifts.length > 0 && shifts.every((shift) => shift.status === 1)) {
       return { status: 'full', label: 'Đủ', icon: '🟢' };
     }
 

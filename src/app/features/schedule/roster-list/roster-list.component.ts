@@ -168,7 +168,6 @@ export class RosterListComponent implements OnInit {
     );
 
     // Use orgId as scopeCode directly (no longer need numeric conversion)
-    debugger;
     this.api
       .getByMonth(orgId, this.selectedYear, this.selectedMonth)
       .subscribe({
@@ -249,58 +248,34 @@ export class RosterListComponent implements OnInit {
     return name || roster.name;
   }
 
-  // Check if edit action is allowed
+  canCreate(): boolean { return this.auth.hasPermission('roster.create'); }
+
   canEdit(roster: RosterListItem): boolean {
-    if (roster.status === 'LOCKED') return false;
-    if (roster.status === 'DRAFT') return true;
-    // PUBLISHED: check permission
-    return this.auth.hasPermission('roster.update');
+    return roster.status === 'DRAFT' && this.auth.hasPermission('roster.edit');
   }
 
-  // Show edit button (hidden for LOCKED)
-  showEdit(roster: RosterListItem): boolean {
-    return roster.status !== 'LOCKED';
-  }
+  showEdit(roster: RosterListItem): boolean { return this.canEdit(roster); }
 
-  // Show clone button (always show for now, can add business rules later)
-  showClone(roster: RosterListItem): boolean {
-    return true; // Clone is always available
-  }
-
-  // Check if publish action is shown
   canPublish(roster: RosterListItem): boolean {
-    return roster.status === 'DRAFT';
+    return roster.status === 'DRAFT' && this.auth.hasPermission('roster.publish');
   }
 
-  // Check if unpublish action is shown
   canUnpublish(roster: RosterListItem): boolean {
-    return roster.status === 'PUBLISHED';
+    return roster.status === 'PUBLISHED' && this.auth.hasPermission('roster.publish');
   }
 
-  // Check if lock action is shown (not for already locked)
   canLock(roster: RosterListItem): boolean {
-    return roster.status !== 'LOCKED';
+    return roster.status !== 'LOCKED' && this.auth.hasPermission('roster.edit');
   }
 
-  // Show lock icon (always show, disabled for LOCKED)
-  showLockIcon(roster: RosterListItem): boolean {
-    return true;
-  }
+  showLockIcon(roster: RosterListItem): boolean { return this.canLock(roster); }
+  isLockDisabled(roster: RosterListItem): boolean { return !this.canLock(roster); }
 
-  // Check if lock icon should be disabled
-  isLockDisabled(roster: RosterListItem): boolean {
-    return roster.status === 'LOCKED';
-  }
-
-  // Check if delete action is allowed
   canDelete(roster: RosterListItem): boolean {
-    return roster.status === 'DRAFT';
+    return roster.status === 'DRAFT' && this.auth.hasPermission('roster.delete');
   }
 
-  // Show delete button (hidden for PUBLISHED and LOCKED)
-  showDelete(roster: RosterListItem): boolean {
-    return roster.status === 'DRAFT';
-  }
+  showDelete(roster: RosterListItem): boolean { return this.canDelete(roster); }
 
   // Get row opacity class for locked rosters
   getRowClass(roster: RosterListItem): string {

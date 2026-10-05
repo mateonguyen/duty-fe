@@ -1,0 +1,52 @@
+:host { display: block; width: 100%; height: 100%; }
+.admin-shell { height: 100%; display: grid; grid-template-columns: 240px minmax(0,1fr); background: var(--ui-canvas); }
+
+/* Sidebar is a floating card that shares the 12px outer gutter of .app-content (left/bottom), so it reads as one frame with the page cards. */
+.admin-sidebar { display: flex; flex-direction: column; min-height: 0; margin-top: 12px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); overflow: hidden; }
+.sidebar-heading { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--ui-border); }
+.sidebar-symbol { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--ui-primary); color: #fff; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 6px rgb(8 100 60 / 22%); }
+.sidebar-heading strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.sidebar-heading small { display: block; margin-top: 2px; font-size: 12px; color: var(--ui-text-muted); }
+
+.nav-content { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 12px 10px; scrollbar-width: thin; }
+.nav-content section + section { margin-top: 16px; }
+.section-toggle { display: flex; align-items: center; width: 100%; justify-content: space-between; gap: 8px; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-text-muted); font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .7px; cursor: pointer; transition: color .15s; }
+.section-toggle:hover { color: var(--ui-text); }
+.section-toggle i { font-size: 10px; }
+.nav-content nav { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.nav-content nav a { position: relative; display: flex; gap: 12px; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: var(--ui-control-radius); text-decoration: none; color: var(--ui-text); font-size: 14px; line-height: 1.35; transition: background-color .15s, color .15s; }
+.nav-content nav a i { color: var(--ui-text-muted); font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; transition: color .15s; }
+.nav-content nav a:hover { background: var(--ui-surface-soft); }
+.nav-content nav a:hover i { color: var(--ui-text); }
+.nav-content nav a.active { background: var(--ui-primary-soft); color: var(--ui-primary); font-weight: 600; }
+.nav-content nav a.active i { color: var(--ui-primary); }
+/* Active indicator bar on the inner edge. */
+.nav-content nav a.active::before { content: ''; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ui-primary); }
+
+/* Pinned to the bottom of the card instead of floating after the last section. */
+.nav-content footer { display: flex; align-items: center; gap: 8px; margin: auto -10px -12px; padding: 12px 20px; border-top: 1px solid var(--ui-border); background: var(--ui-surface-soft); color: var(--ui-text-muted); font-size: 12px; }
+.nav-content section:last-of-type { margin-bottom: 16px; }
+
+.admin-main { min-width: 0; overflow: auto; padding: 20px 24px 32px; }
+/* Let the personnel workspace reach the same bottom edge as the sidebar. */
+:host ::ng-deep .admin-main:has(.personnel-workspace,.organization-workspace) { padding-bottom: 0; }
+@media(max-width:1000px) { :host ::ng-deep .admin-main:has(.personnel-workspace,.organization-workspace) { padding-bottom: 32px; } }
+/* Routed pages get their gutter from .admin-main; drop the standalone .ui-page gutter to avoid doubling it. */
+:host ::ng-deep .admin-main .ui-page { padding: 0; max-width: none; }
+.mobile-menu { display: none; background: transparent; border: 0; border-radius: 8px; color: var(--ui-primary); width: 36px; height: 36px; margin-left: auto; cursor: pointer; }
+.mobile-menu:hover { background: var(--ui-primary-soft); }
+:is(a,button):focus-visible { outline: 3px solid #218363; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .section-toggle, .nav-content nav a, .nav-content nav a i { transition: none; } }
+@media(max-width:767px) {
+  .admin-shell { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
+  .admin-sidebar { margin-top: 8px; }
+  .sidebar-heading { padding: 10px 12px; border-bottom: 0; }
+  .sidebar-heading small { display: none; }
+  .sidebar-symbol { width: 30px; height: 30px; font-size: 14px; }
+  .mobile-menu { display: block; }
+  .nav-content { max-height: 40dvh; border-top: 1px solid var(--ui-border); padding-top: 8px; }
+  .nav-content.mobile-closed { display: none; }
+  .nav-content footer { display: none; }
+  .admin-main { padding: 16px 4px 24px; }
+  :host ::ng-deep .admin-main:has(.personnel-workspace,.organization-workspace) { padding-bottom: 24px; }
+}

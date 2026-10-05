@@ -1,6 +1,7 @@
 <div class="px-3 py-2 bg-white flex items-center gap-3">
   <div class="flex items-center gap-2">
     <button
+      *ngIf="shifts.length > 0"
       pButton
       type="button"
       class="p-button-text p-button-plain p-button-sm"
@@ -16,10 +17,11 @@
       (click)="select(s)"
     >
       <span class="font-semibold">{{ s.name }}</span>
-      <span class="ml-2 text-xs" *ngIf="selectedShift() as sh">
-        {{ sh.start }}–{{ sh.end }}
+      <span class="ml-2 text-xs">
+        {{ s.start }}–{{ s.end }}
       </span>
     </button>
+    <span *ngIf="shifts.length === 0" class="text-sm text-slate-500">Chưa có ca trực để chọn</span>
   </div>
 </div>
 

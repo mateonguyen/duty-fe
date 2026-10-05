@@ -26,10 +26,17 @@
       [ngClass]="{
         'out-of-range': !d.inRange,
         'is-today': isToday(d.date),
+        'has-assignments': d.inRange && cellAssignments(d.key).length > 0,
         'has-selected-user': hasSelectedUserAssignment(d.key)
       }"
       cdkDropList
       (cdkDropListDropped)="onStaffDrop($event, d)"
+      [attr.tabindex]="d.inRange ? 0 : null"
+      [attr.role]="d.inRange ? 'button' : null"
+      [attr.aria-label]="d.inRange ? 'Xem chi tiết ca trực ngày ' + (d.date | date : 'dd/MM/yyyy') : null"
+      (click)="d.inRange && showDayDetails($event, d.key)"
+      (keydown.enter)="d.inRange && onCellKeydown($event, d.key)"
+      (keydown.space)="d.inRange && onCellKeydown($event, d.key)"
     >
       <!-- date number with today indicator -->
       <div class="cell-header">
@@ -44,10 +51,12 @@
         <button
           *ngIf="d.inRange && !readOnly"
           class="add-btn"
-          pButton
-          icon="pi pi-plus"
-          (click)="quickAdd.emit(d.key)"
-        ></button>
+          [class.add-btn--filled]="cellAssignments(d.key).length > 0"
+          type="button"
+          [attr.aria-label]="'Thêm phân công ngày ' + (d.date | date : 'dd/MM/yyyy')"
+          [pTooltip]="selectedUser ? 'Thêm ' + selectedUser.displayName + ' vào ca đang chọn' : 'Chọn cán bộ bên trái để phân công'"
+          (click)="$event.stopPropagation(); quickAdd.emit(d.key)"
+        ><i class="pi pi-plus" aria-hidden="true"></i><span>Thêm</span></button>
       </div>
 
       <!-- assignments split: leaders on separate lines, staff chips below -->
@@ -61,7 +70,7 @@
             [pTooltip]="getTagTooltip(a)"
             tooltipPosition="top"
           >
-            <i class="pi pi-star-fill chip-icon"></i>
+            <i class="pi pi-star-fill chip-icon" aria-label="Chỉ huy trực"></i>
             <span class="chip-name">{{ a.userName }}</span>
             <button
               *ngIf="!readOnly"
@@ -82,6 +91,7 @@
             [pTooltip]="getTagTooltip(a)"
             tooltipPosition="top"
           >
+            <button *ngIf="!readOnly" class="chip-commander" type="button" [attr.aria-label]="'Chọn ' + a.userName + ' làm chỉ huy trực'" pTooltip="Chọn làm chỉ huy trực" (click)="$event.stopPropagation(); commanderChange.emit(a)"><i class="pi pi-star" aria-hidden="true"></i></button>
             <span class="chip-name">{{ a.userName }}</span>
             <button
               *ngIf="!readOnly"
@@ -98,6 +108,7 @@
             class="overflow-indicator"
             [pTooltip]="getOverflowTooltip(d.key)"
             tooltipPosition="top"
+            (click)="showDayDetails($event, d.key)"
           >
             +{{ overflowCount(d.key) }}
           </span>
@@ -105,6 +116,38 @@
       </div>
     </div>
   </div>
+
+  <p-dialog
+    header="Chi tiết ca trực"
+    [visible]="dayDialogOpen()"
+    (visibleChange)="dayDialogOpen.set($event)"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: '520px', maxWidth: '94vw' }"
+    appendTo="body"
+  >
+    <div *ngIf="selectedDayKey() as dayKey" class="day-dialog">
+      <div class="day-dialog-context">
+        <strong>Ngày {{ dayKey | date : 'dd/MM/yyyy' }}</strong>
+        <span>{{ selectedShiftName }}<span *ngIf="selectedLocationName"> · {{ selectedLocationName }}</span></span>
+      </div>
+      <div class="day-dialog-count">{{ cellAssignments(dayKey).length }} cán bộ trực</div>
+      <div *ngIf="cellAssignments(dayKey).length; else emptyDay" class="day-details-list">
+        <div *ngFor="let a of cellAssignments(dayKey)" class="day-details-person">
+          <i *ngIf="a.isLeader" class="pi pi-star-fill" aria-label="Chỉ huy trực"></i>
+          <button *ngIf="!readOnly && !a.isLeader" class="chip-commander" type="button" [attr.aria-label]="'Chọn ' + a.userName + ' làm chỉ huy trực'" (click)="commanderChange.emit(a)"><i class="pi pi-star" aria-hidden="true"></i></button>
+          <div>
+            <strong>{{ a.userName }}</strong>
+            <small>{{ a.positionTitle }}<span *ngIf="a.positionTitle && a.orgUnitName"> · </span>{{ a.orgUnitName }}</small>
+            <small *ngIf="a.phone">{{ a.phone }}</small>
+            <small *ngIf="a.note">{{ a.note }}</small>
+          </div>
+        </div>
+      </div>
+      <ng-template #emptyDay><p class="day-dialog-empty">Chưa có cán bộ được phân công cho ca này.</p></ng-template>
+    </div>
+  </p-dialog>
 
   <!-- Assignment Details Popover -->
   <p-overlayPanel #op [showCloseIcon]="true" styleClass="assignment-popover">
@@ -120,7 +163,7 @@
               {{ selectedAssignment()!.userName }}
             </h4>
             <span *ngIf="selectedAssignment()!.isLeader" class="leader-badge">
-              <i class="pi pi-star-fill"></i> Lãnh đạo
+              <i class="pi pi-star-fill"></i> Chỉ huy trực
             </span>
           </div>
         </div>

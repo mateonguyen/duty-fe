@@ -1,0 +1,42 @@
+<section class="ui-card unit-detail" aria-label="Hồ sơ đơn vị" [attr.aria-busy]="loading">
+  <div class="unit-loading" *ngIf="loading"><div class="ui-skeleton" *ngFor="let n of [1,2,3]"></div><span class="ui-sr-only" role="status">Đang tải hồ sơ đơn vị.</span></div>
+  <div class="ui-empty" *ngIf="!loading && error"><i class="pi pi-cloud" aria-hidden="true"></i><h3>Chưa tải được hồ sơ đơn vị</h3><p>Thử tải lại danh mục để xem dữ liệu đã xác nhận.</p></div>
+  <ng-container *ngIf="!loading && !error">
+    <ng-container *ngIf="editorOpen; else profile">
+      <header class="detail-heading"><span class="detail-icon"><i class="pi" [class.pi-pencil]="!!editing" [class.pi-plus]="!editing" aria-hidden="true"></i></span><div><p class="ui-eyebrow">{{ editing ? 'CHỈNH SỬA HỒ SƠ' : 'BỔ SUNG CƠ CẤU' }}</p><h2>{{ editing ? 'Chỉnh sửa đơn vị' : 'Thêm đơn vị mới' }}</h2><p>{{ editing ? draft.code + ' · Mã đơn vị được giữ cố định' : 'Nhập thông tin và chọn đơn vị quản lý trực tiếp.' }}</p></div></header>
+      <form (ngSubmit)="unitForm.valid && saveUnit.emit()" #unitForm="ngForm">
+        <div class="detail-body">
+          <div class="ui-notice ui-notice--error" role="alert" *ngIf="editorError">{{ editorError }}</div>
+          <fieldset [disabled]="saving"><legend class="ui-sr-only">Thông tin đơn vị</legend>
+            <h3 class="section-title"><span>01</span>Thông tin cơ bản</h3>
+            <div class="unit-fields">
+              <label class="ui-field">Mã đơn vị <span class="required-mark">*</span><input class="ui-input" name="code" [(ngModel)]="draft.code" required maxlength="50" [readonly]="!!editing" placeholder="Ví dụ: P13" /></label>
+              <label class="ui-field">Tên viết tắt<input class="ui-input" name="shortName" [(ngModel)]="draft.shortName" maxlength="50" placeholder="Ví dụ: Phòng 13" /></label>
+              <label class="ui-field field-full">Tên đơn vị <span class="required-mark">*</span><input class="ui-input" name="name" [(ngModel)]="draft.name" required maxlength="500" placeholder="Nhập tên đầy đủ của đơn vị" /></label>
+            </div>
+            <h3 class="section-title"><span>02</span>Quan hệ tổ chức</h3>
+            <div class="ui-field"><label for="unit-detail-parent">Đơn vị cha</label><app-ui-select inputId="unit-detail-parent" label="Đơn vị cha" name="parent" [(ngModel)]="draft.parentId" [options]="parentOptions" [disabled]="saving" /><small>Bản cài có một đơn vị gốc; đơn vị con thuộc một đơn vị quản lý trực tiếp.</small></div>
+            <div class="active-setting"><div><strong>Trạng thái hoạt động</strong><p>{{ editing && editing === root?.code ? 'Đơn vị gốc luôn hoạt động trong bản cài.' : 'Cho phép sử dụng trong danh mục nghiệp vụ.' }}</p></div><label class="active-toggle"><input name="active" type="checkbox" [(ngModel)]="draft.active" [disabled]="editing === root?.code" /><span class="toggle-track" aria-hidden="true"></span><span>Đang hoạt động</span></label></div>
+            <p class="change-warning" *ngIf="editing"><i class="pi pi-info-circle" aria-hidden="true"></i>Chuyển đơn vị sang nhánh khác sẽ thu hồi quyền có phạm vi liên quan để quản trị cấp lại. Lịch và giấy đã lưu được giữ nguyên.</p>
+          </fieldset>
+        </div>
+        <footer class="detail-footer"><span>{{ dirty ? 'Có thay đổi chưa lưu' : '* Thông tin bắt buộc' }}</span><div class="ui-actions"><button class="ui-btn" type="button" (click)="cancelEdit.emit()" [disabled]="saving">Hủy</button><button class="ui-btn ui-btn--primary" type="submit" [disabled]="saving || unitForm.invalid || (!!editing && !dirty)"><i class="pi" [class.pi-save]="!saving" [class.pi-spinner]="saving" [class.pi-spin]="saving" aria-hidden="true"></i>{{ saving ? 'Đang lưu…' : 'Lưu đơn vị' }}</button></div></footer>
+      </form>
+    </ng-container>
+    <ng-template #profile>
+      <ng-container *ngIf="unit; else noUnit">
+        <header class="detail-heading"><span class="detail-icon"><i class="pi pi-building" aria-hidden="true"></i></span><div><p class="ui-eyebrow">HỒ SƠ ĐƠN VỊ</p><h2>{{ unit.name }}</h2><div class="unit-tags"><span class="unit-code">{{ unit.code }}</span><span class="ui-badge" [class.ui-badge--success]="unit.active"><span class="badge-dot"></span>{{ unit.active ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</span></div></div></header>
+        <div class="detail-actions" *ngIf="writable"><button class="ui-btn ui-btn--primary" [attr.aria-label]="'Sửa ' + unit.name" (click)="editUnit.emit(unit)"><i class="pi pi-pencil" aria-hidden="true"></i>Chỉnh sửa</button><button class="ui-btn" (click)="addChild.emit(unit)" [disabled]="!unit.active"><i class="pi pi-plus" aria-hidden="true"></i>Thêm đơn vị con</button></div>
+        <div class="detail-body">
+          <h3 class="section-title"><span>01</span>Thông tin chung</h3>
+          <dl class="unit-information"><div><dt>Mã đơn vị</dt><dd>{{ unit.code }}</dd></div><div><dt>Tên viết tắt</dt><dd [class.ui-muted]="!unit.shortName">{{ unit.shortName || 'Chưa cập nhật' }}</dd></div><div class="field-full"><dt>Tên đầy đủ</dt><dd>{{ unit.name }}</dd></div><div class="field-full"><dt>Đơn vị quản lý trực tiếp</dt><dd><button class="parent-link" *ngIf="parent; else rootLabel" (click)="selectUnit.emit(parent.code)">{{ parent.name }}<i class="pi pi-arrow-up-right" aria-hidden="true"></i></button><ng-template #rootLabel>Đơn vị gốc của bản cài</ng-template></dd></div></dl>
+          <h3 class="section-title"><span>02</span>Trong cơ cấu tổ chức</h3>
+          <div class="structure-summary"><div><strong class="ui-numeric">{{ children.length }}</strong><span>Đơn vị trực thuộc trực tiếp</span></div><div><strong>{{ !unit.parentId ? 'Đơn vị gốc' : 'Trực thuộc' }}</strong><span>{{ !unit.parentId ? 'Quản lý cơ cấu của bản cài' : parent?.shortName || parent?.code || 'Đơn vị quản lý' }}</span></div></div>
+          <div class="unit-path" aria-label="Vị trí trong cây"><i class="pi pi-sitemap" aria-hidden="true"></i><span *ngFor="let item of path; let last = last"><button *ngIf="!last; else currentPath" (click)="selectUnit.emit(item.code)">{{ item.shortName || item.code }}</button><ng-template #currentPath><strong>{{ item.shortName || item.code }}</strong></ng-template><i *ngIf="!last" class="pi pi-angle-right" aria-hidden="true"></i></span></div>
+        </div>
+        <footer class="detail-footer"><span><i class="pi pi-shield" aria-hidden="true"></i>{{ writable ? 'Thay đổi được ghi vào nhật ký hệ thống' : 'Danh mục chỉ xem' }}</span></footer>
+      </ng-container>
+      <ng-template #noUnit><div class="ui-empty no-unit"><span class="detail-icon"><i class="pi pi-sitemap" aria-hidden="true"></i></span><h3>{{ organizations.length ? 'Chọn đơn vị để xem hồ sơ' : 'Chưa có đơn vị' }}</h3><p>{{ organizations.length ? 'Chọn một đơn vị ở cây bên trái để xem thông tin và quan hệ tổ chức.' : 'Tạo đơn vị gốc, sau đó bổ sung các đơn vị trực thuộc.' }}</p><button class="ui-btn ui-btn--primary" *ngIf="writable && !organizations.length" (click)="createUnit.emit()"><i class="pi pi-plus" aria-hidden="true"></i>Thêm đơn vị đầu tiên</button></div></ng-template>
+    </ng-template>
+  </ng-container>
+</section>

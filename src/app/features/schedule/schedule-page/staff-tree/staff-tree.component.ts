@@ -5,6 +5,11 @@ import {
   Output,
   signal,
   inject,
+  ViewChild,
+  ElementRef,
+  AfterViewInit,
+  OnChanges,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InputTextModule } from 'primeng/inputtext';
@@ -30,7 +35,9 @@ import { SystemConfigService } from '../../../admin/system-config/system-config.
   styleUrls: ['./staff-tree.component.scss'],
   templateUrl: './staff-tree.component.html',
 })
-export class StaffTreeComponent {
+export class StaffTreeComponent implements AfterViewInit, OnChanges, OnDestroy {
+  @ViewChild('staffScroll') private staffScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild('staffContent') private staffContent?: ElementRef<HTMLDivElement>;
   @Input() orgTree: OrgUnitNodeWithStaff[] | null = null;
   @Input() selectedUser: SimpleUser | null = null;
   @Output() selectUser = new EventEmitter<SimpleUser | null>();
@@ -41,6 +48,76 @@ export class StaffTreeComponent {
   // key by org unit CODE (string) because numeric id may be 0 for many records from backend
   expandedGroups = signal<{ [key: string]: boolean }>({});
   isFocus = false;
+  scrollbarVisible = signal(false);
+  thumbHeight = signal(0);
+  thumbTop = signal(0);
+  private resizeObserver?: ResizeObserver;
+  private updateFrame = 0;
+  private dragStartY = 0;
+  private dragStartScrollTop = 0;
+
+  ngAfterViewInit(): void {
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.scheduleScrollbarUpdate());
+      this.resizeObserver.observe(this.staffScroll!.nativeElement);
+      this.resizeObserver.observe(this.staffContent!.nativeElement);
+    }
+    this.scheduleScrollbarUpdate();
+  }
+
+  ngOnChanges(): void {
+    this.scheduleScrollbarUpdate();
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+    if (typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(this.updateFrame);
+  }
+
+  onQueryChange(value: string): void {
+    this.query.set(value);
+    this.scheduleScrollbarUpdate();
+  }
+
+  private scheduleScrollbarUpdate(): void {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    cancelAnimationFrame(this.updateFrame);
+    this.updateFrame = requestAnimationFrame(() => this.updateScrollbar());
+  }
+
+  updateScrollbar(): void {
+    const scroll = this.staffScroll?.nativeElement;
+    if (!scroll) return;
+    const overflow = scroll.scrollHeight - scroll.clientHeight;
+    this.scrollbarVisible.set(overflow > 1);
+    if (overflow <= 1) return;
+    const trackHeight = Math.max(0, scroll.clientHeight - 8);
+    const thumbHeight = Math.min(trackHeight, Math.max(24, trackHeight * scroll.clientHeight / scroll.scrollHeight));
+    this.thumbHeight.set(thumbHeight);
+    this.thumbTop.set(scroll.scrollTop / overflow * (trackHeight - thumbHeight));
+  }
+
+  startThumbDrag(event: PointerEvent): void {
+    event.preventDefault();
+    this.dragStartY = event.clientY;
+    this.dragStartScrollTop = this.staffScroll?.nativeElement.scrollTop ?? 0;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  moveThumbDrag(event: PointerEvent): void {
+    if (!(event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return;
+    const scroll = this.staffScroll?.nativeElement;
+    if (!scroll) return;
+    const trackTravel = scroll.clientHeight - 8 - this.thumbHeight();
+    if (trackTravel > 0) {
+      scroll.scrollTop = this.dragStartScrollTop + (event.clientY - this.dragStartY) * (scroll.scrollHeight - scroll.clientHeight) / trackTravel;
+    }
+  }
+
+  endThumbDrag(event: PointerEvent): void {
+    const thumb = event.currentTarget as HTMLElement;
+    if (thumb.hasPointerCapture(event.pointerId)) thumb.releasePointerCapture(event.pointerId);
+  }
 
   pick(u: SimpleUser) {
     this.selectUser.emit(u);
@@ -48,6 +125,7 @@ export class StaffTreeComponent {
 
   toggleGroupExpanded(groupKey: string) {
     this.expandedGroups.update((e) => ({ ...e, [groupKey]: !e[groupKey] }));
+    this.scheduleScrollbarUpdate();
   }
 
   // Remove Vietnamese diacritics for search

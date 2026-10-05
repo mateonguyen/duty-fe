@@ -1,37 +1,105 @@
 /* You can add global styles to this file, and also import other style files */
 @use "tailwindcss";
-
 @use "primeicons/primeicons.css";
+@use "./styles/design-system";
+
+/* Angular bundles the local Google Sans font faces, including Vietnamese glyphs. */
+@theme {
+  --font-sans: "Google Sans", Arial, sans-serif;
+}
+
+/* Global z-index scale */
+:root {
+  --app-font-family: "Google Sans", Arial, sans-serif;
+  --z-navbar: 2000; /* top menu xanh */
+  --z-page-header: 1500; /* header trang sticky */
+  --z-dropdown: 1200; /* dropdown/overlay trong page */
+  --z-modal: 3000; /* modal/dialog */
+  --navbar-height: 48px; /* fallback height của top navbar (h-12) */
+  --app-navbar-height: var(--navbar-height);
+  --app-top-offset: var(--app-navbar-height);
+}
 
 html {
+  font-family: var(--app-font-family);
   font-size: 14px;
-  line-height: 1.2;
+  line-height: 1.5;
+}
+
+body {
+  font-family: var(--app-font-family);
+  font-optical-sizing: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* PrimeNG components should inherit app font globally */
+.p-component {
+  font-family: inherit;
 }
 
 /* Shared catalog table styling */
 .catalog-table.p-datatable {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
   overflow: hidden; /* safe since paginator dropdown appends to body */
 }
+.catalog-table .p-datatable-header {
+  padding: 12px 16px;
+  background: var(--ui-surface);
+  border: 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+.catalog-table .p-datatable-header > div { min-height: 40px; }
 .catalog-table .p-datatable-thead > tr > th {
-  background: #f1f5f9;
-  color: #1e293b;
-  font-weight: 700;
-  border-bottom: 2px solid #cbd5e1;
-  padding: 0.75rem 1.25rem;
+  background: var(--ui-surface-soft);
+  color: var(--ui-text-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--ui-border);
+  padding: 12px 16px;
+  white-space: nowrap;
 }
 .catalog-table .p-datatable-tbody > tr {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #edf2ee;
 }
 .catalog-table .p-datatable-tbody > tr:hover {
-  background: #f8fafc;
+  background: var(--ui-surface-soft);
 }
 .catalog-table .p-datatable-tbody > tr > td {
-  padding: 0.75rem 1.25rem;
+  padding: 10px 16px;
+}
+.catalog-table .p-datatable-thead > tr > th:first-child,
+.catalog-table .p-datatable-tbody > tr > td:first-child {
+  padding-left: 20px;
+}
+.catalog-table .p-datatable-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+.catalog-table .p-datatable-tbody > tr > td.catalog-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--ui-text-muted);
+}
+.catalog-empty i {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 28px;
+  color: #a4b2a8;
 }
 .catalog-table .p-paginator {
   justify-content: flex-end;
+  gap: 4px;
+  padding: 8px 16px;
+  border: 0;
+  border-top: 1px solid var(--ui-border);
+  border-radius: 0;
 }
 .catalog-table .p-input-icon-left {
   position: relative;
@@ -47,6 +115,23 @@ html {
 }
 .catalog-table .p-input-icon-left > input {
   padding-left: 2.5rem;
+}
+/* Page toolbar above a catalog table: title + scope picker left, primary actions right. */
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-height: 42px;
+  margin-bottom: 16px;
+}
+.catalog-note {
+  margin-top: 10px;
+  padding-left: 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ui-text-muted);
 }
 
 /* Error tooltip styling */
@@ -92,4 +177,71 @@ body.monitoring-fullscreen .monitor-toolbar {
 
 body.monitoring-fullscreen .monitor-toolbar__title {
   font-size: 1.5rem;
+}
+
+/* =====================================================================
+   Global PrimeNG Overlay Z-Index Fix
+   Ensure all PrimeNG overlays (menus, dialogs, tooltips) appear above
+   the fixed header (z-30) and other page content
+   ===================================================================== */
+
+/* PrimeNG menubar submenus - should float above navbar but below modal */
+.p-menubar .p-submenu-list,
+.p-menubar-submenu {
+  z-index: calc(var(--z-navbar) + 10) !important;
+}
+
+/* Toasts open below the navigation bar and above page content. */
+.p-toast {
+  top: calc(var(--app-navbar-height) + 12px) !important;
+  z-index: calc(var(--z-navbar) + 30) !important;
+}
+
+/* PrimeNG overlays (dialogs, overlayPanels, etc.) */
+.p-component-overlay,
+.p-dialog-mask,
+.p-overlaypanel,
+.p-tooltip {
+  z-index: var(--z-modal) !important;
+}
+
+/* PrimeNG dropdown/multiselect panels */
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel {
+  z-index: var(--z-dropdown) !important;
+}
+
+/* CDK overlays (if any) */
+.cdk-overlay-container {
+  z-index: var(--z-dropdown);
+}
+
+/* =====================================================================
+   App loader (shared asset)
+   Use <img src="assets/loading.svg" class="app-loader [app-loader--small|--tiny|--large]"> in templates
+   ===================================================================== */
+.app-loader {
+  display: inline-block;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.app-loader--large {
+  width: 96px;
+  height: 96px;
+}
+.app-loader--small {
+  width: 28px;
+  height: 28px;
+}
+.app-loader--tiny {
+  width: 18px;
+  height: 18px;
+}
+
+.loader-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

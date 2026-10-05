@@ -15,17 +15,51 @@ export class StaffDataService {
 
   /**
    * Lấy staff theo loại lịch (Cục hoặc Phòng)
-   * - Cục: Chỉ lãnh đạo Cục (positionLevel <= 2)
-   * - Phòng: Tất cả cán bộ của phòng cụ thể
+   * ROSTER LOGIC:
+   * - Bao gồm tất cả cán bộ trong đơn vị (không chỉ lãnh đạo)
+   * - Filter theo orgUnitCode
+   * - Nếu includeChildren=true: lấy cả staff của các đơn vị con
+   * - Sắp xếp: lãnh đạo lên trước, sau đó theo chức vụ và tên
    */
-  getStaffForRoster(orgUnitCode?: string): Observable<SimpleUser[]> {
+  getStaffForRoster(
+    orgUnitCode?: string,
+    includeChildren: boolean = false
+  ): Observable<SimpleUser[]> {
     return this.authApi.getStaff().pipe(
       map((users) => {
         let filtered = users;
+
+        // Filter by org unit scope
         if (orgUnitCode) {
-          filtered = users.filter((u) => u.orgUnitCode === orgUnitCode);
+          if (includeChildren) {
+            // Include staff from scope AND all children (starts with scope ID)
+            filtered = users.filter(
+              (u) =>
+                u.orgUnitCode === orgUnitCode ||
+                (u.orgUnitCode?.startsWith(orgUnitCode + '.') ?? false)
+            );
+          } else {
+            // Exact match only
+            filtered = users.filter((u) => u.orgUnitCode === orgUnitCode);
+          }
         }
-        return this.convertToSimpleUsers(filtered);
+
+        const simpleUsers = this.convertToSimpleUsers(filtered);
+
+        // Sort: leaders first (by positionLevel asc), then by displayName
+        return simpleUsers.sort((a, b) => {
+          // Leaders (isLeader=true) come first
+          if (a.isLeader && !b.isLeader) return -1;
+          if (!a.isLeader && b.isLeader) return 1;
+
+          // Within leaders or non-leaders, sort by positionLevel (lower = higher rank)
+          const levelA = a.positionLevel ?? 999;
+          const levelB = b.positionLevel ?? 999;
+          if (levelA !== levelB) return levelA - levelB;
+
+          // Finally by displayName
+          return (a.displayName || '').localeCompare(b.displayName || '');
+        });
       })
     );
   }

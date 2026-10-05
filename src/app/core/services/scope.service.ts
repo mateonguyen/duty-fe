@@ -5,6 +5,7 @@ import { Observable, map } from 'rxjs';
 export interface ScopeRef {
   orgId: string; // keep as string (may contain dots/leading zeros)
   displayName: string;
+  includeChildren?: boolean; // true if scope includes child org units
 }
 
 export type FeatureKey =
@@ -21,6 +22,12 @@ export class ScopeService {
     // Removed diagnostics injection and window helper
   }
 
+  // Minimal per-feature in-memory state to support legacy consumers
+  private featureState = new Map<
+    FeatureKey,
+    { items: ScopeRef[]; active?: ScopeRef; loading: boolean; error?: string }
+  >();
+
   /**
    * Initialize scopes from JWT/decoded data (called after login or app reload)
    */
@@ -36,9 +43,29 @@ export class ScopeService {
    */
   load(feature: FeatureKey): Observable<ScopeRef[]> {
     const params = new HttpParams().set('feature', feature);
+
+    // Initialize state
+    if (!this.featureState.has(feature)) {
+      this.featureState.set(feature, { items: [], loading: true });
+    } else {
+      const st = this.featureState.get(feature)!;
+      st.loading = true;
+      st.error = undefined;
+    }
+
     return this.http
       .get<{ items: ScopeRef[] }>(`/api/scopes/effective`, { params })
-      .pipe(map((res) => res.items ?? []));
+      .pipe(
+        map((res) => res.items ?? []),
+        map((items) => {
+          // Update in-memory state
+          const st = this.featureState.get(feature)!;
+          st.items = items;
+          st.loading = false;
+          if (!st.active && items.length > 0) st.active = items[0];
+          return items;
+        })
+      );
   }
 
   /**
@@ -46,14 +73,16 @@ export class ScopeService {
    */
   // Disabled stateful methods (Phase 1): return safe defaults
   getScopes(_: FeatureKey): ScopeRef[] {
-    return [];
+    const st = this.featureState.get(_);
+    return st ? st.items : [];
   }
 
   /**
    * Get currently active scope for a feature
    */
   getActiveScope(_: FeatureKey): ScopeRef | null {
-    return null;
+    const st = this.featureState.get(_);
+    return st?.active ?? null;
   }
 
   /**
@@ -70,21 +99,24 @@ export class ScopeService {
    * Check if scopes are loaded and ready for a feature
    */
   isReady(_: FeatureKey): boolean {
-    return false;
+    const st = this.featureState.get(_);
+    return !!st && !st.loading;
   }
 
   /**
    * Check if loading scopes for a feature
    */
   isLoading(_: FeatureKey): boolean {
-    return false;
+    const st = this.featureState.get(_);
+    return !!st && st.loading;
   }
 
   /**
    * Get error message if scope loading failed
    */
   getError(_: FeatureKey): string | null {
-    return null;
+    const st = this.featureState.get(_);
+    return st?.error ?? null;
   }
 
   /**
@@ -98,18 +130,58 @@ export class ScopeService {
   clearAll() {}
 
   // --- Private helpers ---
-  // Removed feature state map
-  private getFeatureState(_: FeatureKey): any {
-    return undefined;
+  // --- Private helpers ---
+  private getFeatureState(feature: FeatureKey) {
+    return this.featureState.get(feature);
   }
 
-  private updateFeatureState(_: FeatureKey, __: any) {}
-
-  private saveLastUsedScope(_: FeatureKey, __: ScopeRef) {}
-  private getLastUsedScope(_: FeatureKey): ScopeRef | null {
-    return null;
+  private updateFeatureState(
+    feature: FeatureKey,
+    payload: Partial<{
+      items: ScopeRef[];
+      active?: ScopeRef;
+      loading: boolean;
+      error?: string;
+    }>
+  ) {
+    const cur = this.featureState.get(feature) || { items: [], loading: false };
+    const merged = { ...cur, ...payload } as {
+      items: ScopeRef[];
+      active?: ScopeRef;
+      loading: boolean;
+      error?: string;
+    };
+    this.featureState.set(feature, merged);
   }
-  private restoreLastUsedScopes() {}
+
+  private saveLastUsedScope(feature: FeatureKey, scope: ScopeRef) {
+    try {
+      localStorage.setItem(`scope.last.${feature}`, JSON.stringify(scope));
+    } catch {}
+  }
+
+  private getLastUsedScope(feature: FeatureKey): ScopeRef | null {
+    try {
+      const raw = localStorage.getItem(`scope.last.${feature}`);
+      if (!raw) return null;
+      return JSON.parse(raw) as ScopeRef;
+    } catch {
+      return null;
+    }
+  }
+  private restoreLastUsedScopes() {
+    // No-op for now
+  }
+
+  /**
+   * Check if user has a specific permission at a given scope.
+   * Returns true if the scope is in the list of effective scopes for that permission.
+   */
+  hasPermissionInScope(permission: string, scopeCode: string | null): boolean {
+    if (!scopeCode) return false; // catalog.* permissions are scoped
+    const scopes = this.getScopes(permission);
+    return scopes.some((s) => s.orgId === scopeCode);
+  }
 
   /** Dev-only: dump current scope state to console */
   dump() {

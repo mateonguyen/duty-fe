@@ -1,0 +1,917 @@
+<div class="travel-page">
+  <!-- Toolbar -->
+  <div class="travel-toolbar">
+    <div class="travel-toolbar__left">
+      <h1>
+        {{ getPageTitle() }}
+      </h1>
+      <app-scope-picker
+        *ngIf="!isOrderEditMode()"
+        class="scope-picker-header"
+        [scopes]="scopes()"
+        [selected]="activeScope()"
+        (selectedChange)="onScopeChange($event)"
+        [showIncludeChildrenHint]="true"
+      ></app-scope-picker>
+    </div>
+    <div class="travel-toolbar__right">
+      <button
+        pButton
+        type="button"
+        label="Quay lại"
+        severity="secondary"
+        class="p-button-sm p-button-text"
+        icon="pi pi-arrow-left"
+        (click)="onCancel()"
+      ></button>
+      <button
+        pButton
+        type="button"
+        [label]="isSubmitting() ? 'Đang lưu...' : (isEditMode() || isOrderEditMode() ? 'Lưu thay đổi' : 'Lưu nháp')"
+        severity="secondary"
+        icon="pi pi-save"
+        (click)="onSubmit(false)"
+        [disabled]="!isFormValid() || isSubmitting()"
+        class="p-button-sm"
+      ></button>
+      <button
+        pButton
+        type="button"
+        label="{{ getSubmitButtonLabel() }}"
+        icon="pi pi-check"
+        (click)="onSubmit(true)"
+        [disabled]="!isFormValid() || isSubmitting() || !canTakeNumberOnForm()"
+        class="p-button-sm"
+      ></button>
+    </div>
+  </div>
+
+  <!-- BODY: TWO-COLUMN SCROLLABLE -->
+  <div class="travel-body">
+    <!-- LEFT: PREVIEW PANEL (wide) -->
+    <div class="travel-preview-col">
+      <div class="preview-header">
+        <h3>Xem trước</h3>
+        <span class="preview-count" *ngIf="personsFA.length > 0">
+          {{ personsFA.length }} giấy •
+          {{
+            getDisplayNameWithRank(personsArray[activePersonIndex]) ||
+              "Đang chọn"
+          }}
+        </span>
+      </div>
+      <div class="preview-scroll">
+        <!-- Loading State -->
+        <div *ngIf="isLoadingPdf()" class="preview-loading-state">
+          <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+          <span role="status">Đang tạo PDF...</span>
+        </div>
+
+        <!-- Error State -->
+        <div
+          *ngIf="previewError() && !isLoadingPdf()"
+          class="preview-error-state"
+        >
+          <i class="pi pi-exclamation-circle"></i>
+          <span>{{ previewError() }}</span>
+          <button
+            pButton
+            type="button"
+            class="p-button-text p-button-sm"
+            label="Thử lại"
+            (click)="retryPreview()"
+          ></button>
+        </div>
+
+        <!-- PDF Viewer (FileViewComponent) -->
+        <app-file-view
+          *ngIf="currentFileConfig() && !isLoadingPdf()"
+          [fileConfig]="currentFileConfig()"
+          [showHeader]="false"
+          [allowPrint]="false"
+          [allowDownload]="false"
+          [visible]="true"
+          class="preview-viewer"
+        ></app-file-view>
+
+        <!-- Empty State -->
+        <div
+          *ngIf="!previewBlobUrl() && !isLoadingPdf() && !previewError()"
+          class="preview-empty-state"
+        >
+          <span class="preview-empty-icon"><i class="pi pi-file-pdf" aria-hidden="true"></i></span>
+          <strong>Chưa có bản xem trước</strong>
+          <span>Thêm cán bộ ở mục <b>Cán bộ đi công tác</b> để xem trước giấy đi đường.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: FORM PANEL (fixed width) -->
+    <div class="travel-form-col" (scroll)="onFormColumnScroll()">
+      <form [formGroup]="tripForm" (ngSubmit)="onSubmit()" class="form-wrapper">
+        <!-- ERROR MESSAGE -->
+        <div *ngIf="errorMsg()" class="alert alert-error">
+          {{ errorMsg() }}
+        </div>
+
+        <!-- SECTION 1: THÔNG TIN CHUNG -->
+        <p-panel
+          header="Thông tin chung"
+          [toggleable]="true"
+          [collapsed]="!isOrderEditMode()"
+          toggler="header"
+        >
+          <div class="common-grid common-grid--balanced">
+            <div class="field flex flex-col gap-2 common-field-card">
+              <label for="missionNo" class="common-field-label"
+                >Số công lệnh</label
+              >
+              <input
+                id="missionNo"
+                type="text"
+                pInputText
+                formControlName="missionNo"
+                placeholder="VD: CV/2025/..."
+                class="common-field-input"
+              />
+            </div>
+
+            <div class="field flex flex-col gap-2 common-field-card">
+              <label for="missionDate" class="common-field-label"
+                >Ngày công lệnh</label
+              >
+              <p-calendar
+                inputId="missionDate"
+                formControlName="missionDate"
+                dateFormat="dd/mm/yy"
+                [showIcon]="true"
+                appendTo="body"
+                placeholder="Chọn ngày"
+                styleClass="common-field-input"
+              ></p-calendar>
+            </div>
+
+            <div class="field flex flex-col gap-2 common-field-card">
+              <label for="fromDate" class="common-field-label">Từ ngày</label>
+              <p-calendar
+                inputId="fromDate"
+                formControlName="fromDate"
+                dateFormat="dd/mm/yy"
+                [showIcon]="true"
+                appendTo="body"
+                placeholder="Chọn ngày"
+                styleClass="common-field-input"
+                [ngClass]="{
+                  'ng-invalid ng-dirty':
+                    tripForm.get('fromDate')?.invalid &&
+                    tripForm.get('fromDate')?.touched,
+                }"
+              ></p-calendar>
+            </div>
+
+            <div class="field flex flex-col gap-2 common-field-card">
+              <label for="toDate" class="common-field-label">Đến ngày</label>
+              <p-calendar
+                inputId="toDate"
+                formControlName="toDate"
+                dateFormat="dd/mm/yy"
+                [showIcon]="true"
+                appendTo="body"
+                placeholder="Chọn ngày"
+                styleClass="common-field-input"
+                [ngClass]="{
+                  'ng-invalid ng-dirty':
+                    tripForm.get('toDate')?.invalid &&
+                    tripForm.get('toDate')?.touched,
+                }"
+              ></p-calendar>
+            </div>
+
+            <!-- Ngày khởi hành: removed as per requirement -->
+          </div>
+        </p-panel>
+
+        <!-- SECTION 2: CÁN BỘ ĐI CÔNG TÁC (PERSONNEL) -->
+        <p-panel
+          [toggleable]="true"
+          [collapsed]="false"
+          toggler="header"
+        >
+          <ng-template pTemplate="header">
+            <div class="personnel-panel-header">
+              <span>Cán bộ đi công tác</span>
+              <span class="selected-badge-count">{{ personsFA.length }} cán bộ</span>
+            </div>
+          </ng-template>
+          <div class="flex flex-col gap-3">
+            <!-- Single Search Input (external) -->
+            <div
+              *ngIf="!isOrderEditMode()"
+              class="search-field-wrapper"
+              #personnelDropdownWrapper
+            >
+              <div class="search-input-container">
+                <i class="pi pi-search search-left-icon"></i>
+                <input
+                  #personnelInput
+                  pInputText
+                  class="w-full pl-10 pr-10"
+                  placeholder="Nhập tên cán bộ..."
+                  [formControl]="personnelSearchCtrl"
+                  (focus)="onPersonnelInputFocus()"
+                  (keydown)="onPersonnelInputKeydown($event)"
+                />
+                <button
+                  *ngIf="personnelSearchCtrl.value"
+                  type="button"
+                  class="search-right-icon"
+                  aria-label="Xóa tìm kiếm"
+                  (click)="personnelSearchCtrl.setValue('')"
+                >
+                  <i class="pi pi-times" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <!-- Flat Dropdown Panel -->
+              <div
+                *ngIf="showStaffDropdown() && personnelSearchCtrl.value"
+                class="staff-dropdown-wrapper flat-panel"
+                (mousedown)="$event.preventDefault()"
+              >
+                <!-- Leaders Group -->
+                <div
+                  *ngIf="leadersResults().length > 0"
+                  class="group-block leaders-block"
+                >
+                  <div class="group-header">Lãnh đạo</div>
+                  <div class="group-list">
+                    <div
+                      *ngFor="let p of leadersResults(); let i = index"
+                      class="flat-item"
+                      [ngClass]="{
+                        'flat-item--highlighted': isHighlightedStaff(i),
+                        'person-item--leader': true,
+                        'person-item--staff': false,
+                      }"
+                      (mouseenter)="setHighlightedStaffIndex(i)"
+                      (click)="onPersonnelSelected(p)"
+                    >
+                      <i class="pi pi-user item-icon"></i>
+                      <div class="item-text">
+                        <div class="item-title">
+                          {{ getDisplayNameWithRank(p) }}
+                          <i class="pi pi-star-fill person-item__badge" aria-label="Lãnh đạo"></i>
+                        </div>
+                        <div class="item-sub">
+                          {{ p.positionTitle }}
+                          <span class="separator" *ngIf="p.unitName">•</span>
+                          {{ p.unitName }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Staff Group -->
+                <div
+                  *ngIf="staffResults().length > 0"
+                  class="group-block staff-block"
+                >
+                  <div class="group-header">Cán bộ</div>
+                  <div class="group-list">
+                    <div
+                      *ngFor="let p of staffResults(); let i = index"
+                      class="flat-item"
+                      [ngClass]="{
+                        'flat-item--highlighted': isHighlightedStaff(
+                          getStaffResultGlobalIndex(i)
+                        ),
+                        'person-item--leader': p.isLeader,
+                        'person-item--staff': !p.isLeader,
+                      }"
+                      (mouseenter)="
+                        setHighlightedStaffIndex(getStaffResultGlobalIndex(i))
+                      "
+                      (click)="onPersonnelSelected(p)"
+                    >
+                      <i class="pi pi-user item-icon"></i>
+                      <div class="item-text">
+                        <div class="item-title">
+                          {{ getDisplayNameWithRank(p) }}
+                          <i *ngIf="p.isLeader" class="pi pi-star-fill person-item__badge" aria-label="Lãnh đạo"></i>
+                        </div>
+                        <div class="item-sub">
+                          {{ p.positionTitle }}
+                          <span class="separator" *ngIf="p.unitName">•</span>
+                          {{ p.unitName }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div
+                  *ngIf="
+                    isPersonnelQueryNonEmpty &&
+                    leadersResults().length === 0 &&
+                    staffResults().length === 0
+                  "
+                  class="dropdown-empty"
+                >
+                  <i class="pi pi-search" aria-hidden="true"></i>
+                  <span>Không tìm thấy cán bộ</span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="isOrderEditMode()" class="helper">
+              Chế độ sửa giấy chỉ hiển thị cán bộ thuộc giấy hiện tại.
+            </div>
+
+            <!-- Selected Personnel List -->
+            <div class="selected-personnel-section">
+              <!-- Personnel List -->
+              <div class="selected-personnel-list">
+                <div
+                  *ngFor="let ctrl of sortedSelectedPersonnel; let i = index"
+                  class="selected-personnel-item"
+                  [ngClass]="{
+                    'selected-item--leader': ctrl.value?.isLeader,
+                    'selected-item--active': isActivePerson(ctrl, i),
+                  }"
+                  (click)="setActivePersonByControl(ctrl, i)"
+                >
+                  <div class="selected-item-person">
+                    <i class="pi pi-user selected-item-icon"></i>
+                    <div class="selected-item-text">
+                      <div class="selected-item-name">
+                        {{ getDisplayNameWithRank(ctrl.value) }}
+                        <span class="leader-badge" *ngIf="ctrl.value?.isLeader"
+                          ><i class="pi pi-star-fill" aria-hidden="true"></i>Lãnh đạo</span
+                        >
+                      </div>
+                      <div class="selected-item-meta">
+                        {{ ctrl.value.positionTitle }}
+                        <span class="separator" *ngIf="ctrl.value.unitName"
+                          >•</span
+                        >
+                        {{ ctrl.value.unitName }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="selected-item-signer">
+                    <div class="card-signer-row">
+                      <div
+                        class="card-signer-picker"
+                        (click)="$event.stopPropagation()"
+                      >
+                        <button
+                          type="button"
+                          class="card-signer-trigger"
+                          [attr.aria-expanded]="isSignerPickerOpen(ctrl, i)"
+                          (click)="toggleSignerPicker(ctrl, i, $any($event.currentTarget))"
+                        >
+                          <div class="card-signer-trigger-main">
+                            <span class="card-signer-name-row">
+                              <i
+                                class="pi pi-verified card-signer-prefix-icon"
+                                aria-hidden="true"
+                              ></i>
+                              <span class="card-signer-name">
+                                {{
+                                  getDisplayNameWithRank(
+                                    getSignerForCard(ctrl, i)
+                                  ) || "Chọn người duyệt"
+                                }}
+                              </span>
+                            </span>
+                            <span class="card-signer-meta">
+                              {{ getSignerTitle(getSignerForCard(ctrl, i)) }}
+                              <ng-container
+                                *ngIf="
+                                  getSignerSecondaryInfo(
+                                    getSignerForCard(ctrl, i)
+                                  )
+                                "
+                              >
+                                <span class="separator">•</span>
+                                {{
+                                  getSignerSecondaryInfo(
+                                    getSignerForCard(ctrl, i)
+                                  )
+                                }}
+                              </ng-container>
+                            </span>
+                          </div>
+                          <i
+                            class="pi"
+                            [ngClass]="{
+                              'pi-chevron-down': !isSignerPickerOpen(ctrl, i),
+                              'pi-chevron-up': isSignerPickerOpen(ctrl, i),
+                            }"
+                          ></i>
+                        </button>
+
+                        <div
+                          *ngIf="
+                            isSignerPickerOpen(ctrl, i)
+                          "
+                          class="card-signer-dropdown"
+                          (keydown.escape)="closeSignerPicker()"
+                        >
+                          <div class="card-signer-search">
+                            <i class="pi pi-search" aria-hidden="true"></i>
+                            <input
+                              type="search"
+                              class="card-signer-search-input"
+                              placeholder="Tìm người duyệt..."
+                              aria-label="Tìm người duyệt"
+                              [value]="signerPickerQuery()"
+                              (input)="onSignerPickerSearch($event)"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            class="card-signer-option card-signer-option--empty"
+                            (click)="onSignerChangeForCard(ctrl, i, '')"
+                          >
+                            <span class="card-signer-option-name"
+                              >Chưa chọn người duyệt</span
+                            >
+                            <span class="card-signer-option-meta"
+                              >Sử dụng khi cần bỏ chọn cho cán bộ này</span
+                            >
+                          </button>
+
+                          <button
+                            *ngFor="
+                              let leader of getFilteredSignerOptionsForCard(ctrl, i)
+                            "
+                            type="button"
+                            class="card-signer-option"
+                            [ngClass]="{
+                              'card-signer-option--active':
+                                getSignerForCard(ctrl, i)?.username ===
+                                leader.username,
+                            }"
+                            (click)="
+                              onSignerChangeForCard(ctrl, i, leader.username)
+                            "
+                          >
+                            <span class="card-signer-option-name">
+                              {{ getDisplayNameWithRank(leader) }}
+                            </span>
+                            <span class="card-signer-option-meta">
+                              {{ getSignerTitle(leader) }}
+                              <span class="separator" *ngIf="leader.unitName"
+                                >•</span
+                              >
+                              {{ leader.unitName }}
+                              <span class="separator">•</span>
+                              <span
+                                class="card-signer-scope-tag"
+                                [ngClass]="{
+                                  'scope-tag--same':
+                                    getApproverScopeLabel(
+                                      leader,
+                                      ctrl.value,
+                                      i
+                                    ) === 'Cùng đơn vị',
+                                  'scope-tag--upper':
+                                    getApproverScopeLabel(
+                                      leader,
+                                      ctrl.value,
+                                      i
+                                    ) === 'Cấp trên',
+                                }"
+                              >
+                                {{
+                                  getApproverScopeLabel(leader, ctrl.value, i)
+                                }}
+                              </span>
+                            </span>
+                          </button>
+
+                          <div
+                            *ngIf="getFilteredSignerOptionsForCard(ctrl, i).length === 0"
+                            class="card-signer-empty"
+                          >
+                            <i class="pi pi-search" aria-hidden="true"></i>
+                            Không tìm thấy người duyệt phù hợp
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="selected-item-actions" *ngIf="!isOrderEditMode()">
+                    <button
+                      type="button"
+                      class="btn-remove"
+                      aria-label="Xóa cán bộ"
+                      (click)="removeSelected(ctrl)"
+                      [title]="'Xoá ' + ctrl.value.fullName"
+                    >
+                      <i class="pi pi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  *ngIf="personsFA.length === 0"
+                  class="selected-empty-state"
+                >
+                  <i class="pi pi-inbox"></i>
+                  <p>Chưa có cán bộ nào được chọn</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </p-panel>
+
+        <!-- SECTION 4: NGƯỜI DUYỆT (SIGNER) -->
+        <p-panel
+          *ngIf="!isOrderEditMode()"
+          [toggleable]="true"
+          [collapsed]="false"
+          toggler="header"
+        >
+          <ng-template pTemplate="header">
+            <div class="approver-panel-header">
+              <span class="approver-panel-title">Áp dụng người duyệt</span>
+              <span class="approver-context" *ngIf="personsFA.length > 0">
+                <span class="approver-context-label">Sẽ áp dụng cho</span>
+                <strong class="approver-context-name"
+                  >{{ getBulkScopeTargetCount() }} cán bộ</strong
+                >
+              </span>
+            </div>
+          </ng-template>
+
+          <div class="approver-section">
+            <div class="approver-picker-shell">
+              <div class="bulk-approver-grid">
+                <div class="bulk-approver-field">
+                  <div
+                    class="bulk-approver-dropdown"
+                    #approverDropdownWrapper
+                    (keydown)="onBulkApproverKeydown($event)"
+                  >
+                    <button
+                      type="button"
+                      class="bulk-approver-trigger"
+                      aria-label="Chọn người duyệt áp dụng"
+                      [ngClass]="{ 'is-open': showLeaderDropdown() }"
+                      (click)="toggleBulkSignerDropdown()"
+                    >
+                      <div class="bulk-approver-trigger-main">
+                        <span class="bulk-approver-name-row">
+                          <i
+                            class="pi pi-verified bulk-approver-prefix-icon"
+                            aria-hidden="true"
+                          ></i>
+                          <span class="bulk-approver-name">
+                            {{
+                              getDisplayNameWithRank(getBulkSignerSelected()) ||
+                                "Chọn người duyệt"
+                            }}
+                          </span>
+                        </span>
+                        <span class="bulk-approver-meta">
+                          {{ getSignerTitle(getBulkSignerSelected()) }}
+                          <ng-container
+                            *ngIf="
+                              getSignerSecondaryInfo(getBulkSignerSelected())
+                            "
+                          >
+                            <span class="separator">•</span>
+                            {{
+                              getSignerSecondaryInfo(getBulkSignerSelected())
+                            }}
+                          </ng-container>
+                        </span>
+                      </div>
+                      <i
+                        class="pi"
+                        [ngClass]="{
+                          'pi-chevron-down': !showLeaderDropdown(),
+                          'pi-chevron-up': showLeaderDropdown(),
+                        }"
+                      ></i>
+                    </button>
+
+                    <div
+                      *ngIf="showLeaderDropdown()"
+                      class="bulk-approver-panel"
+                      [ngClass]="{
+                        'dropdown--top': approverDropdownPlacement() === 'top',
+                        'dropdown--bottom':
+                          approverDropdownPlacement() === 'bottom',
+                      }"
+                      [style.max-height.px]="approverDropdownMaxHeight()"
+                    >
+                      <div class="bulk-approver-search-wrap">
+                        <i class="pi pi-search bulk-approver-search-icon"></i>
+                        <input
+                          #bulkApproverSearchInput
+                          id="bulkApproverInput"
+                          aria-label="Tìm người duyệt"
+                          pInputText
+                          class="bulk-approver-search-input"
+                          [value]="approverQuery()"
+                          placeholder="Tìm người duyệt..."
+                          (input)="onBulkApproverInput($event)"
+                        />
+                        <button
+                          *ngIf="approverQuery()"
+                          type="button"
+                          class="bulk-approver-clear"
+                          (click)="clearBulkApproverQuery()"
+                          aria-label="Xóa tìm kiếm"
+                        >
+                          <i class="pi pi-times"></i>
+                        </button>
+                      </div>
+
+                      <div class="bulk-approver-options">
+                        <div
+                          class="bulk-approver-group"
+                          *ngIf="getLeaderDropdownSameUnitOptions().length > 0"
+                        >
+                          <div class="bulk-approver-group-title">
+                            Ưu tiên cùng đơn vị
+                          </div>
+                          <button
+                            *ngFor="
+                              let leader of getLeaderDropdownSameUnitOptions();
+                              let idx = index
+                            "
+                            type="button"
+                            class="bulk-approver-option"
+                            [ngClass]="{
+                              'is-selected': isBulkApproverSelected(leader),
+                              'is-active': isHighlightedLeader(idx),
+                            }"
+                            (mouseenter)="setHighlightedLeaderIndex(idx)"
+                            (click)="selectBulkApprover(leader)"
+                          >
+                            <div class="bulk-approver-option-main">
+                              <div class="bulk-approver-option-name">
+                                {{ getDisplayNameWithRank(leader) }}
+                              </div>
+                              <div class="bulk-approver-option-meta">
+                                {{ getSignerTitle(leader) }}
+                                <ng-container *ngIf="leader.unitName">
+                                  <span class="separator">•</span>
+                                  {{ leader.unitName }}
+                                </ng-container>
+                              </div>
+                            </div>
+                            <div class="bulk-approver-option-right">
+                              <span
+                                class="bulk-approver-chip bulk-approver-chip--same"
+                                >Cùng đơn vị</span
+                              >
+                              <i
+                                class="pi pi-check bulk-approver-option-check"
+                                *ngIf="isBulkApproverSelected(leader)"
+                              ></i>
+                            </div>
+                          </button>
+                        </div>
+
+                        <div
+                          class="bulk-approver-group"
+                          *ngIf="getLeaderDropdownUpperUnitOptions().length > 0"
+                        >
+                          <div class="bulk-approver-group-title">Cấp trên</div>
+                          <button
+                            *ngFor="
+                              let leader of getLeaderDropdownUpperUnitOptions();
+                              let idx = index
+                            "
+                            type="button"
+                            class="bulk-approver-option"
+                            [ngClass]="{
+                              'is-selected': isBulkApproverSelected(leader),
+                              'is-active': isHighlightedLeader(
+                                getUpperLeaderGlobalIndex(idx)
+                              ),
+                            }"
+                            (mouseenter)="
+                              setHighlightedLeaderIndex(
+                                getUpperLeaderGlobalIndex(idx)
+                              )
+                            "
+                            (click)="selectBulkApprover(leader)"
+                          >
+                            <div class="bulk-approver-option-main">
+                              <div class="bulk-approver-option-name">
+                                {{ getDisplayNameWithRank(leader) }}
+                              </div>
+                              <div class="bulk-approver-option-meta">
+                                {{ getSignerTitle(leader) }}
+                                <ng-container *ngIf="leader.unitName">
+                                  <span class="separator">•</span>
+                                  {{ leader.unitName }}
+                                </ng-container>
+                              </div>
+                            </div>
+                            <div class="bulk-approver-option-right">
+                              <span
+                                class="bulk-approver-chip bulk-approver-chip--upper"
+                                >Cấp trên</span
+                              >
+                              <i
+                                class="pi pi-check bulk-approver-option-check"
+                                *ngIf="isBulkApproverSelected(leader)"
+                              ></i>
+                            </div>
+                          </button>
+                        </div>
+
+                        <div
+                          *ngIf="
+                            !leaderSearchLoading() &&
+                            leaderDropdownResults().length === 0
+                          "
+                          class="bulk-approver-empty"
+                        >
+                          <i class="pi pi-search"></i>
+                          <span>Không tìm thấy người duyệt phù hợp</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="bulk-approver-actions">
+                <button
+                  type="button"
+                  class="bulk-apply-btn"
+                  [disabled]="!canApplyBulkSigner()"
+                  (click)="applySignerBulk()"
+                >
+                  <i class="pi pi-check"></i>
+                  <span>Áp dụng tất cả</span>
+                </button>
+              </div>
+
+              <div class="helper error" *ngIf="isApproverRequired()">
+                Chưa chọn người duyệt
+              </div>
+            </div>
+          </div>
+        </p-panel>
+
+        <!-- SECTION 4: LỘ TRÌNH (STOPS/ROUTE) -->
+        <p-panel
+          header="Lộ trình"
+          [toggleable]="true"
+          [collapsed]="!isOrderEditMode()"
+          toggler="header"
+        >
+          <div class="flex flex-col gap-3">
+            <div
+              *ngFor="let stop of stopsArray.controls; let i = index"
+              [formGroup]="$any(stop)"
+              class="route-stop-card"
+            >
+              <div class="route-stop-header">
+                <span class="route-stop-index">Điểm {{ i + 1 }}</span>
+                <span class="route-stop-summary">{{ stop.get('fromLocation')?.value || 'Nơi đi' }} <i class="pi pi-arrow-right" aria-hidden="true"></i> {{ stop.get('toLocation')?.value || 'Nơi đến' }}</span>
+                <button
+                  type="button"
+                  class="route-stop-remove"
+                  *ngIf="stopsArray.length > 1"
+                  (click)="removeStop(i)"
+                  [attr.aria-label]="'Xóa điểm ' + (i + 1)"
+                ><i class="pi pi-trash" aria-hidden="true"></i><span>Xóa</span></button>
+              </div>
+
+              <div class="route-stop-fields grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="flex flex-col gap-2">
+                  <label>Từ</label>
+                  <input
+                    type="text"
+                    pInputText
+                    formControlName="fromLocation"
+                    placeholder="Địa điểm xuất phát"
+                  />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <label>Thời gian từ</label>
+                  <p-calendar
+                    formControlName="fromDateTime"
+                    [showTime]="true"
+                    dateFormat="dd/mm/yy"
+                    [showIcon]="true"
+                    appendTo="body"
+                    placeholder="Chọn ngày giờ"
+                  ></p-calendar>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <label>Đến</label>
+                  <input
+                    type="text"
+                    pInputText
+                    formControlName="toLocation"
+                    placeholder="Địa điểm đến"
+                  />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <label>Thời gian đến</label>
+                  <p-calendar
+                    formControlName="toDateTime"
+                    [showTime]="true"
+                    dateFormat="dd/mm/yy"
+                    [showIcon]="true"
+                    appendTo="body"
+                    placeholder="Chọn ngày giờ"
+                  ></p-calendar>
+                </div>
+
+                <div class="flex flex-col gap-2 md:col-span-2">
+                  <label>Phương tiện</label>
+                  <input
+                    type="text"
+                    pInputText
+                    formControlName="transport"
+                    placeholder="VD: Ô tô, máy bay..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              pButton
+              type="button"
+              label="Thêm điểm dừng"
+              icon="pi pi-plus"
+              class="p-button-outlined"
+              (click)="addStop()"
+            ></button>
+          </div>
+        </p-panel>
+      </form>
+    </div>
+  </div>
+
+  <!-- PDF VIEWER MODAL -->
+  <div
+    *ngIf="showPdfModal()"
+    class="pdf-modal-overlay"
+    (click)="onClosePdfModal()"
+  >
+    <div class="pdf-modal-content" (click)="$event.stopPropagation()">
+      <div class="pdf-modal-header">
+        <h3>Xem PDF giấy đi đường</h3>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="onClosePdfModal()"
+          title="Đóng"
+          aria-label="Đóng"
+        >
+          <i class="pi pi-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="pdf-modal-body">
+        <iframe
+          *ngIf="pdfBlobUrl()"
+          [src]="pdfBlobUrl() | safe: 'resourceUrl'"
+          class="pdf-viewer-iframe"
+        ></iframe>
+        <div *ngIf="!pdfBlobUrl() && !isLoadingPdf()" class="pdf-error">
+          Không thể tải PDF
+        </div>
+      </div>
+      <div class="pdf-modal-footer">
+        <button
+          pButton
+          type="button"
+          label="Đóng"
+          (click)="onClosePdfModal()"
+          class="p-button-sm p-button-outlined"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Tải xuống"
+          icon="pi pi-download"
+          (click)="onDownloadPdf()"
+          [disabled]="!pdfBlobUrl()"
+          class="p-button-sm"
+        ></button>
+      </div>
+    </div>
+  </div>
+</div>

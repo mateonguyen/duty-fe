@@ -1,113 +1,19 @@
-<div class="h-[calc(100vh-48px)] grid grid-cols-[280px_1fr]">
-  <!-- SIDEBAR -->
-  <aside class="border-r bg-white">
-    <!-- tiêu đề + nút menu -->
-    <div class="h-12 px-4 border-b flex items-center justify-between">
-      <div class="text-base font-semibold">Quản trị</div>
-      <button
-        pButton
-        type="button"
-        icon="pi pi-ellipsis-v"
-        class="p-button-text p-button-rounded"
-      ></button>
-    </div>
-
-    <div class="px-3 py-2 space-y-5 text-[15px]">
-      <!-- NHÓM: DANH MỤC -->
-      <section>
-        <button
-          class="w-full flex items-center justify-between px-3 py-2 text-xs tracking-wider text-slate-500"
-          (click)="openCatalog.set(!openCatalog())"
-        >
-          <span>DANH MỤC</span>
-          <i
-            class="pi"
-            [ngClass]="{
-              'pi-chevron-up': openCatalog(),
-              'pi-chevron-down': !openCatalog()
-            }"
-          ></i>
-        </button>
-
-        <div *ngIf="openCatalog()" class="mt-1">
-          <a
-            routerLink="/admin/catalog/duty-locations"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-map-marker"></i><span>Địa điểm trực</span>
-          </a>
-          <a
-            routerLink="/admin/catalog/shifts"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-clock"></i><span>Ca trực</span>
-          </a>
-          <a
-            routerLink="/admin/catalog/duty-roles"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-verified"></i><span>Vai trò trực</span>
-          </a>
-        </div>
-      </section>
-
-      <hr />
-
-      <!-- NHÓM: QUẢN TRỊ -->
-      <section>
-        <button
-          class="w-full flex items-center justify-between px-3 py-2 text-xs tracking-wider text-slate-500"
-          (click)="openAccess.set(!openAccess())"
-        >
-          <span>QUẢN TRỊ</span>
-          <i
-            class="pi"
-            [ngClass]="{
-              'pi-chevron-up': openAccess(),
-              'pi-chevron-down': !openAccess()
-            }"
-          ></i>
-        </button>
-
-        <div *ngIf="openAccess()" class="mt-1">
-          <a
-            routerLink="/admin/access/roles"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-key"></i><span>Vai trò</span>
-          </a>
-          <a
-            routerLink="/admin/access/user-roles"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-user-edit"></i><span>Gán vai trò</span>
-          </a>
-          <a
-            *hasPermission="'system.config'"
-            routerLink="/admin/system-config"
-            routerLinkActive="bg-slate-100 font-medium"
-            [routerLinkActiveOptions]="{ exact: false }"
-            class="flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-100"
-          >
-            <i class="pi pi-cog"></i><span>Cấu hình hệ thống</span>
-          </a>
-        </div>
-      </section>
+<div class="admin-shell">
+  <aside class="admin-sidebar">
+    <header class="sidebar-heading"><span class="sidebar-symbol"><i class="pi pi-shield" aria-hidden="true"></i></span><div><strong>Quản trị hệ thống</strong><small>Cấu hình và danh mục</small></div><button type="button" class="mobile-menu" aria-label="Mở menu quản trị" [attr.aria-expanded]="mobileNavigation()" (click)="mobileNavigation.set(!mobileNavigation())"><i class="pi pi-bars" aria-hidden="true"></i></button></header>
+    <div class="nav-content" [class.mobile-closed]="!mobileNavigation()">
+      @if (showAccessSection()) {
+        <section><button class="section-toggle" [attr.aria-expanded]="openAccess()" (click)="openAccess.set(!openAccess())"><span>HỆ THỐNG</span><i class="pi" [class.pi-chevron-up]="openAccess()" [class.pi-chevron-down]="!openAccess()" aria-hidden="true"></i></button>
+          @if (openAccess()) { <nav aria-label="Quản trị hệ thống">@for (item of accessItems(); track item.id) { <a [routerLink]="item.route" (click)="mobileNavigation.set(false)" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}" ariaCurrentWhenActive="page"><i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span></a> }</nav> }
+        </section>
+      }
+      @if (showCatalogSection()) {
+        <section><button class="section-toggle" [attr.aria-expanded]="openCatalog()" (click)="openCatalog.set(!openCatalog())"><span>DANH MỤC LỊCH TRỰC</span><i class="pi" [class.pi-chevron-up]="openCatalog()" [class.pi-chevron-down]="!openCatalog()" aria-hidden="true"></i></button>
+          @if (openCatalog()) { <nav aria-label="Danh mục lịch trực">@for (item of catalogItems(); track item.id) { <a [routerLink]="item.route" (click)="mobileNavigation.set(false)" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}" ariaCurrentWhenActive="page"><i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span></a> }</nav> }
+        </section>
+      }
+      <footer><i class="pi pi-lock" aria-hidden="true"></i>Phân quyền theo tài khoản</footer>
     </div>
   </aside>
-
-  <!-- MAIN -->
-  <main class="p-4 overflow-auto bg-gray-50">
-    <router-outlet (activate)="onActivate($event)"></router-outlet>
-  </main>
+  <main class="admin-main"><router-outlet></router-outlet></main>
 </div>

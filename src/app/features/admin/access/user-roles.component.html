@@ -1,7 +1,7 @@
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
-<div class="flex items-center justify-between mb-3">
+<div class="catalog-toolbar">
   <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
     <i class="pi pi-user text-blue-600"></i>
     Gán vai trò cho người dùng
@@ -107,6 +107,22 @@
         (onNodeSelect)="onScopeNodeChange()"
         (onClear)="clearScope()"
       ></p-treeSelect>
+      <div
+        class="flex items-center gap-2 mt-2"
+        *ngIf="selectedOrgNode || scopeUnitCode"
+      >
+        <p-checkbox
+          [(ngModel)]="includeChildren"
+          [binary]="true"
+          inputId="includeChildren"
+        />
+        <label
+          for="includeChildren"
+          class="text-sm text-slate-600 cursor-pointer"
+        >
+          Bao gồm đơn vị con
+        </label>
+      </div>
     </div>
     <div class="md:col-span-1 md:justify-start">
       <label class="block text-sm font-medium mb-1 invisible" aria-hidden="true"
@@ -141,60 +157,88 @@
   </div>
 </div>
 
-<p-table
-  [value]="userRoles"
-  [paginator]="true"
-  [rows]="10"
-  [rowsPerPageOptions]="[10, 25, 50]"
-  [showCurrentPageReport]="true"
-  currentPageReportTemplate="Hiển thị {first} - {last} trong {totalRecords} bản ghi"
-  styleClass="catalog-table"
-  [loading]="loading"
->
+<p-table [value]="groupedRoles()" styleClass="roles-table" [loading]="loading">
   <ng-template pTemplate="header">
     <tr>
-      <th class="font-bold">Vai trò</th>
-      <th class="font-bold">Scope</th>
-      <th class="text-center font-bold" style="width: 120px"></th>
+      <th style="width: 30%">Vai trò</th>
+      <th>Đơn vị áp dụng</th>
     </tr>
   </ng-template>
-  <ng-template pTemplate="body" let-ur>
+
+  <ng-template pTemplate="body" let-group>
     <tr>
+      <!-- Role column -->
       <td>
-        <div class="font-semibold">{{ ur.roleName }}</div>
-        <div class="text-sm text-slate-500 font-mono">{{ ur.roleCode }}</div>
+        <div class="flex items-center gap-3">
+          <i
+            class="pi text-lg"
+            [ngClass]="getRoleIconClass(group.roleCode)"
+          ></i>
+          <div>
+            <div class="font-bold text-base">{{ group.roleName }}</div>
+            <div class="text-xs text-slate-500 font-mono">
+              {{ group.roleCode }}
+            </div>
+          </div>
+        </div>
       </td>
+
+      <!-- Scope chips column -->
       <td>
-        <span *ngIf="ur.scopeUnitCode" class="font-mono text-blue-600">{{
-          ur.scopeUnitCode
-        }}</span>
-        <span *ngIf="!ur.scopeUnitCode" class="text-slate-400">Global</span>
-        <span *ngIf="ur.includeChildren" class="ml-2 text-xs text-slate-500"
-          >(bao gồm đơn vị con)</span
-        >
-      </td>
-      <td class="text-center">
-        <button
-          *hasPermission="'role.assign'"
-          pButton
-          class="p-button-text p-button-sm"
-          pTooltip="Thu hồi"
-          (click)="revoke(ur)"
-        >
-          <i class="pi pi-trash text-red-600"></i>
-        </button>
+        <div class="scope-chips-container">
+          <!-- Visible chips -->
+          <div class="scope-chips-wrapper">
+            <div
+              *ngFor="let scope of getVisibleScopes(group.scopes)"
+              class="scope-chip"
+            >
+              <span class="scope-chip-label">{{
+                getScopeChipLabel(scope)
+              }}</span>
+              <i
+                *ngIf="scope.includeChildren"
+                class="pi pi-sitemap chip-children-icon"
+                pTooltip="Bao gồm đơn vị con"
+                tooltipPosition="top"
+              ></i>
+              <button
+                *hasPermission="'role.assign'"
+                class="scope-chip-remove"
+                (click)="revoke(scope)"
+                [disabled]="loading"
+                pTooltip="Thu hồi"
+                tooltipPosition="top"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+
+            <!-- +N more chip with tooltip -->
+            <div
+              *ngIf="getHiddenCount(group.scopes) > 0"
+              class="scope-chip scope-chip-more"
+              [pTooltip]="getFullScopeTooltip(group.scopes)"
+              tooltipPosition="top"
+            >
+              <span class="scope-chip-label"
+                >+{{ getHiddenCount(group.scopes) }} khác</span
+              >
+            </div>
+          </div>
+        </div>
       </td>
     </tr>
   </ng-template>
+
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td colspan="3" class="text-center text-slate-500 py-8">
-        <i class="pi pi-info-circle text-2xl mb-2"></i>
-        <div>
+      <td colspan="2" class="text-center py-8">
+        <i class="pi pi-info-circle text-2xl mb-2 text-slate-400"></i>
+        <div class="text-slate-500">
           {{
             selectedUser || username
               ? "Người dùng chưa được gán vai trò nào"
-              : 'Chọn người dùng và nhấn "Tải quyền" để xem'
+              : "Chọn người dùng để xem vai trò"
           }}
         </div>
       </td>

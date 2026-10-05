@@ -1,3 +1,4 @@
+import { permissionName, permissionGroupName, UNIMPLEMENTED_PERMISSIONS, PERMISSION_DEPENDENCIES } from './permission-display';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +8,7 @@ import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
 import { AuthApiService } from '../../../core/api/auth-api.service';
+import { finalize } from 'rxjs';
 import { PermissionDto, RoleDetailDto } from '../../../shared/models/auth';
 
 @Component({
@@ -25,12 +27,15 @@ import { PermissionDto, RoleDetailDto } from '../../../shared/models/auth';
   styleUrls: ['./role-detail.component.scss'],
 })
 export class RoleDetailComponent implements OnInit {
+  isProtectedRole = (code?: string | null): boolean => code?.toUpperCase() === 'DIRECTORY_ADMIN';
   private route = inject(ActivatedRoute);
   private api = inject(AuthApiService);
 
   role = signal<RoleDetailDto | null>(null);
   allPermissions = signal<PermissionDto[]>([]);
   saving = signal(false);
+  saveError = '';
+  saveSuccess = false;
   editedPerms: Set<string> | null = null;
   permGroups: { prefix: string; items: PermissionDto[]; open: boolean }[] = [];
   permFilter = '';
@@ -46,6 +51,10 @@ export class RoleDetailComponent implements OnInit {
       this.permGroups = this.groupPermissions(p);
     });
   }
+
+  permissionName = permissionName;
+  permissionGroupName = permissionGroupName;
+  isUnimplemented = (code: string) => UNIMPLEMENTED_PERMISSIONS.has(code);
 
   groupPermissions(
     perms: PermissionDto[]
@@ -78,8 +87,8 @@ export class RoleDetailComponent implements OnInit {
   ) {
     if (!this.editedPerms) return;
     for (const p of g.items) {
-      if (checked) this.editedPerms.add(p.code);
-      else this.editedPerms.delete(p.code);
+      if (UNIMPLEMENTED_PERMISSIONS.has(p.code)) continue;
+      this.togglePermission(p.code, checked);
     }
   }
 
@@ -93,28 +102,39 @@ export class RoleDetailComponent implements OnInit {
     open: boolean;
   }): boolean {
     if (!this.editedPerms) return false;
-    return g.items.every((p) => this.editedPerms!.has(p.code));
+    return g.items.filter(p => !UNIMPLEMENTED_PERMISSIONS.has(p.code)).every((p) => this.editedPerms!.has(p.code));
   }
 
   togglePermission(code: string, checked: boolean) {
-    if (!this.editedPerms) return;
-    if (checked) this.editedPerms.add(code);
-    else this.editedPerms.delete(code);
+    if (!this.editedPerms || UNIMPLEMENTED_PERMISSIONS.has(code)) return;
+    if (checked) {
+      this.editedPerms.add(code);
+      for (const dependency of PERMISSION_DEPENDENCIES[code] || []) this.editedPerms.add(dependency);
+    } else {
+      this.editedPerms.delete(code);
+      for (const [dependent, prerequisites] of Object.entries(PERMISSION_DEPENDENCIES)) {
+        if (prerequisites.includes(code)) this.editedPerms.delete(dependent);
+      }
+    }
   }
 
   savePermissions() {
-    if (!this.role() || !this.editedPerms) return;
+    if (!this.role() || this.isProtectedRole(this.role()?.code) || !this.editedPerms) return;
     this.saving.set(true);
+    this.saveError = '';
+    this.saveSuccess = false;
     this.api
       .updateRolePermissions(this.role()!.code, Array.from(this.editedPerms))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           const updated = this.allPermissions().filter((p) =>
             this.editedPerms!.has(p.code)
           );
           this.role.update((r) => (r ? { ...r, permissions: updated } : r));
+          this.saveSuccess = true;
         },
-        complete: () => this.saving.set(false),
+        error: () => this.saveError = 'Không lưu được quyền của vai trò.',
       });
   }
 }

@@ -1,0 +1,33 @@
+:host { display: block; height: 100%; min-height: 0; }
+.staff-tree-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.staff-list-frame { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.staff-list-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.staff-list-scroll::-webkit-scrollbar { display: none; width: 0; }
+.staff-list-scroll:focus-visible { outline: 2px solid #9ccab3; outline-offset: -2px; }
+.staff-scroll-track {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  bottom: 4px;
+  width: 8px;
+  pointer-events: none;
+  z-index: 20;
+}
+.staff-scroll-thumb {
+  width: 5px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(65, 91, 78, 0.48);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.staff-list-frame:hover .staff-scroll-thumb,
+.staff-scroll-thumb:hover { background: rgba(40, 75, 56, 0.7); }
+.staff-scroll-thumb:active { cursor: grabbing; background: #08683f; }

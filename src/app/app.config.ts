@@ -1,23 +1,22 @@
-import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
-import { provideRouter, withDebugTracing } from '@angular/router';
+import {
+  ApplicationConfig,
+  provideZoneChangeDetection,
+  ErrorHandler,
+} from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { routes } from './app.routes';
 import { providePrimeNG } from 'primeng/config';
 import { BrandPreset } from '../theme/brand-preset';
-import {
-  provideHttpClient,
-  withInterceptorsFromDi,
-  HTTP_INTERCEPTORS,
-} from '@angular/common/http';
-import { AuthInterceptor } from './core/auth/auth.interceptor';
-import { HttpDebugInterceptor } from './core/auth/http-debug.interceptor';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { credentialsInterceptor } from './core/http/credentials.interceptor';
+import { GlobalErrorHandler } from './core/errors/global-error.handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideHttpClient(withInterceptorsFromDi()),
-    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
-    { provide: HTTP_INTERCEPTORS, useClass: HttpDebugInterceptor, multi: true },
+    provideHttpClient(withInterceptors([credentialsInterceptor])),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideAnimationsAsync(),

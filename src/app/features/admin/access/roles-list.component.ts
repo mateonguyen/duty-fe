@@ -3,12 +3,12 @@ type PermissionGroup = {
   items: PermissionDto[];
   open: boolean;
 };
+import { permissionName, permissionGroupName, UNIMPLEMENTED_PERMISSIONS, PERMISSION_DEPENDENCIES } from './permission-display';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { TableModule } from 'primeng/table';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, finalize } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextarea } from 'primeng/inputtextarea';
@@ -25,7 +25,6 @@ import {
   RoleDetailDto,
   RoleDto,
 } from '../../../shared/models/auth';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-roles-list',
@@ -34,7 +33,6 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
     CommonModule,
     FormsModule,
     RouterLink,
-    TableModule,
     ButtonModule,
     InputTextModule,
     InputTextarea,
@@ -57,6 +55,42 @@ export class RolesListComponent implements OnInit {
   roles: RoleDto[] = [];
   loading = false;
   selected: RoleDto[] = [];
+  roleSearch = '';
+  isProtectedRole = (code?: string | null): boolean => code?.toUpperCase() === 'DIRECTORY_ADMIN';
+
+  get filteredRoles(): RoleDto[] {
+    const query = this.roleSearch.trim().toLocaleLowerCase('vi');
+    const retired = new Set(['manager', 'editor', 'roster.publisher', 'travel.editor', 'travel.manager', 'access.manager']);
+    const visible = this.roles.filter(role => !this.isProtectedRole(role.code) &&
+      !(role.active === false && retired.has(role.code)));
+    if (!query) return visible;
+    return visible.filter(role => [role.name, role.code, role.description || '']
+      .some(value => value.toLocaleLowerCase('vi').includes(query)));
+  }
+
+  get selectableVisibleRoles(): RoleDto[] {
+    return this.filteredRoles.filter(role => !role.isSystemRole);
+  }
+
+  get allVisibleSelected(): boolean {
+    return this.selectableVisibleRoles.length > 0 &&
+      this.selectableVisibleRoles.every(role => this.isSelected(role));
+  }
+
+  toggleAllVisible(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const visibleCodes = new Set(this.selectableVisibleRoles.map(role => role.code));
+    this.selected = checked
+      ? [...this.selected.filter(role => !visibleCodes.has(role.code)), ...this.selectableVisibleRoles]
+      : this.selected.filter(role => !visibleCodes.has(role.code));
+  }
+
+  isSelected(role: RoleDto): boolean { return this.selected.some(item => item.code === role.code); }
+
+  toggleSelected(role: RoleDto, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.selected = checked ? [...this.selected, role] : this.selected.filter(item => item.code !== role.code);
+  }
 
   // Permissions dialog state
   showPerms = false;
@@ -87,9 +121,9 @@ export class RolesListComponent implements OnInit {
 
   loadRoles(): void {
     this.loading = true;
-    this.api.getRoles().subscribe({
+    this.api.getRoles().pipe(finalize(() => this.loading = false)).subscribe({
       next: (res) => (this.roles = res),
-      complete: () => (this.loading = false),
+      error: () => this.msg.add({ severity: 'error', detail: 'Không tải được danh mục vai trò.' }),
     });
   }
 
@@ -113,14 +147,25 @@ export class RolesListComponent implements OnInit {
 
   isGroupChecked(g: PermissionGroup): boolean {
     if (!this.editedPerms) return false;
-    return g.items.every((p) => this.editedPerms!.has(p.code));
+    return g.items.filter(p => !UNIMPLEMENTED_PERMISSIONS.has(p.code)).every((p) => this.editedPerms!.has(p.code));
   }
 
   togglePermission(code: string, checked: boolean) {
-    if (!this.editedPerms) return;
-    if (checked) this.editedPerms.add(code);
-    else this.editedPerms.delete(code);
+    if (!this.editedPerms || UNIMPLEMENTED_PERMISSIONS.has(code)) return;
+    if (checked) {
+      this.editedPerms.add(code);
+      for (const dependency of PERMISSION_DEPENDENCIES[code] || []) this.editedPerms.add(dependency);
+    } else {
+      this.editedPerms.delete(code);
+      for (const [dependent, prerequisites] of Object.entries(PERMISSION_DEPENDENCIES)) {
+        if (prerequisites.includes(code)) this.editedPerms.delete(dependent);
+      }
+    }
   }
+
+  permissionName = permissionName;
+  permissionGroupName = permissionGroupName;
+  isUnimplemented = (code: string) => UNIMPLEMENTED_PERMISSIONS.has(code);
 
   groupPermissions(perms: PermissionDto[]): PermissionGroup[] {
     const map = new Map<string, PermissionGroup>();
@@ -141,19 +186,20 @@ export class RolesListComponent implements OnInit {
   selectAllInGroup(g: PermissionGroup, checked: boolean) {
     if (!this.editedPerms) return;
     for (const p of g.items) {
-      if (checked) this.editedPerms.add(p.code);
-      else this.editedPerms.delete(p.code);
+      if (UNIMPLEMENTED_PERMISSIONS.has(p.code)) continue;
+      this.togglePermission(p.code, checked);
     }
   }
 
   savePermissions() {
-    if (!this.currentRole || !this.editedPerms) return;
+    if (!this.currentRole || this.isProtectedRole(this.currentRole.code) || !this.editedPerms) return;
     this.saving = true;
     this.api
       .updateRolePermissions(
         this.currentRole.code,
         Array.from(this.editedPerms)
       )
+      .pipe(finalize(() => this.saving = false))
       .subscribe({
         next: () => {
           const updated = this.allPermissions.filter((p) =>
@@ -162,13 +208,11 @@ export class RolesListComponent implements OnInit {
           this.currentRole = { ...this.currentRole!, permissions: updated };
           this.msg.add({ severity: 'success', detail: 'Đã lưu quyền' });
           this.showPerms = false;
+          this.loadRoles();
         },
         error: (err) => {
           console.error('Failed to save permissions:', err);
           this.msg.add({ severity: 'error', detail: 'Không lưu được quyền' });
-        },
-        complete: () => {
-          this.saving = false;
         },
       });
   }
@@ -178,6 +222,8 @@ export class RolesListComponent implements OnInit {
     this.currentRole = null;
     this.editedPerms = null;
   }
+
+  hasSelectedSystemRole(): boolean { return this.selected.some(r => r.isSystemRole); }
 
   openCreateDialog() {
     this.editCode = null;

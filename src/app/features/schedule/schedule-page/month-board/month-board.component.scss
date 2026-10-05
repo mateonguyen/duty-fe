@@ -5,6 +5,10 @@
 
 /* === 1. CALENDAR CONTAINER === */
 .calendar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 500px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 8px;
@@ -16,6 +20,7 @@
 /* === 2. HEADER (T2-CN) === */
 .calendar-header {
   display: grid;
+  flex: none;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -40,6 +45,8 @@
 /* === 3. CALENDAR WEEK ROWS === */
 .calendar-week {
   display: grid;
+  flex: 1 1 0;
+  min-height: 88px;
 }
 
 /* Week highlight (subtle background on rows) */
@@ -55,7 +62,7 @@
 /* === 4. CALENDAR CELLS === */
 .calendar-cell {
   position: relative;
-  min-height: 96px;
+  min-height: 88px;
   background: #fcfcfc;
   border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 10px;
@@ -64,6 +71,9 @@
   &:hover {
     background: rgba(0, 0, 0, 0.03);
   }
+
+  &[role="button"] { cursor: pointer; }
+  &[role="button"]:focus-visible { outline: 2px solid #087348; outline-offset: -2px; }
 
   /* Out-of-range cells (days outside current month) */
   &.out-of-range {
@@ -79,8 +89,8 @@
 
   /* Selected user highlight */
   &.has-selected-user {
-    background: rgba(234, 179, 8, 0.08) !important;
-    border: 2px solid rgb(234, 179, 8) !important;
+    background: rgba(10, 143, 75, 0.06) !important;
+    border: 2px solid #33936a !important;
     border-radius: 6px;
 
     &::before {
@@ -90,7 +100,7 @@
       right: 4px;
       width: 6px;
       height: 6px;
-      background-color: rgb(234, 179, 8);
+      background-color: #0a8f4b;
       border-radius: 50%;
       z-index: 1;
     }
@@ -123,32 +133,42 @@
   }
 }
 
-/* Add button (+) */
+/* Add button in each day cell */
 .add-btn {
-  width: 20px !important;
-  height: 20px !important;
-  padding: 0 !important;
-  min-width: 20px !important;
-  background: transparent !important;
-  border: none !important;
-  color: rgba(0, 0, 0, 0.45) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 64px;
+  min-height: 28px;
+  padding: 3px 8px;
+  background: #f4faf6;
+  border: 1px solid #bad9c7;
+  border-radius: 5px;
+  color: #087348;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
   transition: all 0.12s ease;
 
   .pi {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   &:hover {
-    color: #0a8f4b !important;
-    background: transparent !important;
-    transform: scale(1.12);
+    color: #075d3c;
+    background: #e7f4eb;
   }
 
   &:active,
   &:focus {
-    box-shadow: none !important;
+    outline: 2px solid #9ccab3;
+    outline-offset: 1px;
   }
 }
+
+.add-btn--filled { background: #f4faf6; border-color: #bad9c7; }
 
 /* === 6. CELL CONTENT (CHIPS AREA) === */
 .cell-content {
@@ -285,6 +305,19 @@
   padding: 16px;
 }
 
+.day-dialog { color: #203a2d; }
+.day-dialog-context { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #e2eae5; }
+.day-dialog-context strong { font-size: 15px; }
+.day-dialog-context span { font-size: 12px; color: #617568; }
+.day-dialog-count { margin: 12px 0 4px; color: #08683f; font-size: 12px; font-weight: 650; }
+.day-dialog-empty { margin: 16px 0 4px; color: #617568; font-size: 13px; }
+.day-details-list { display: grid; gap: 0; max-height: 280px; overflow-y: auto; border-top: 1px solid #e2eae5; }
+.day-details-person { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 1px solid #edf1ee; }
+.day-details-person .pi { color: #e7aa22; font-size: 12px; margin-top: 2px; }
+.day-details-person div { display: grid; gap: 2px; min-width: 0; }
+.day-details-person strong { font-size: 12px; color: #203a2d; }
+.day-details-person small { color: #617568; font-size: 11px; line-height: 1.3; }
+
 .popover-header {
   display: flex;
   align-items: center;
@@ -373,3 +406,5 @@
   font-style: italic;
   font-size: 13px;
 }
+.chip-commander { border: 0; background: transparent; color: #8b9b91; cursor: pointer; padding: 2px; line-height: 1; flex: none; }
+.chip-commander:hover, .chip-commander:focus-visible { color: #e2a100; }

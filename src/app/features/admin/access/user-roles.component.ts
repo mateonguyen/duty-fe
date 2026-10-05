@@ -4,6 +4,8 @@ import {
   OnInit,
   ViewChild,
   ElementRef,
+  computed,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +26,9 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { TooltipModule } from 'primeng/tooltip';
+import { CheckboxModule } from 'primeng/checkbox';
+import { AccordionModule } from 'primeng/accordion';
+import { ChipModule } from 'primeng/chip';
 import { MessageService, ConfirmationService, TreeNode } from 'primeng/api';
 import type { AutoCompleteSelectEvent } from 'primeng/autocomplete';
 import { AutoComplete } from 'primeng/autocomplete';
@@ -41,6 +46,9 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
     AutoCompleteModule,
     TreeSelectModule,
     TooltipModule,
+    CheckboxModule,
+    AccordionModule,
+    ChipModule,
     TableModule,
     ToastModule,
     ConfirmDialogModule,
@@ -65,15 +73,92 @@ export class UserRolesComponent implements OnInit {
   roles: RoleDto[] = [];
   roleOptions: { label: string; value: string; code: string; name: string }[] =
     [];
-  userRoles: UserRoleDto[] = [];
+  userRoles = signal<UserRoleDto[]>([]);
   selectedRoleCode = '';
   scopeUnitCode = '';
   loading = false;
   includeChildren = true;
 
+  // Role priority mapping for sorting
+  private rolePriorityMap: Record<string, number> = {
+    admin: 1,
+    manager: 2,
+    editor: 3,
+    viewer: 4,
+  };
+
+  // Grouped roles for display
+  groupedRoles = computed(() => {
+    const roles = this.userRoles();
+    if (!roles.length) return [];
+
+    // Sort by role priority first
+    const sorted = [...roles].sort((a, b) => {
+      const priorityA = this.rolePriorityMap[a.roleCode.toLowerCase()] || 99;
+      const priorityB = this.rolePriorityMap[b.roleCode.toLowerCase()] || 99;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      // If same priority, sort by role name
+      return a.roleName.localeCompare(b.roleName);
+    });
+
+    // Group by roleCode
+    const grouped = new Map<
+      string,
+      { roleName: string; roleCode: string; scopes: UserRoleDto[] }
+    >();
+    sorted.forEach((role) => {
+      if (!grouped.has(role.roleCode)) {
+        grouped.set(role.roleCode, {
+          roleName: role.roleName,
+          roleCode: role.roleCode,
+          scopes: [],
+        });
+      }
+      grouped.get(role.roleCode)!.scopes.push(role);
+    });
+
+    return Array.from(grouped.values());
+  });
+
   // Org tree for scope selection
   orgTree: TreeNode[] = [];
   selectedOrgNode: TreeNode | null = null;
+  // Map org code -> display name for quick lookup when rendering scopes
+  orgNameMap: Record<string, string> = {};
+
+  // Helper: Get scope display name for chip
+  getScopeChipLabel(scope: UserRoleDto): string {
+    if (!scope.scopeUnitCode) {
+      return 'Toàn cục';
+    }
+    const name = this.orgNameMap[scope.scopeUnitCode] || scope.scopeUnitCode;
+    return `${name} (${scope.scopeUnitCode})`;
+  }
+
+  // Helper: Get visible scopes (max 2 rows worth of chips)
+  getVisibleScopes(scopes: UserRoleDto[]): UserRoleDto[] {
+    return scopes.slice(0, 6); // Show max ~6 chips (2 rows)
+  }
+
+  // Helper: Get hidden count
+  getHiddenCount(scopes: UserRoleDto[]): number {
+    return Math.max(0, scopes.length - 6);
+  }
+
+  // Helper: Get full scope list for tooltip
+  getFullScopeTooltip(scopes: UserRoleDto[]): string {
+    return scopes.map((s) => this.getScopeChipLabel(s)).join('\n');
+  }
+
+  // Helper: Get role icon class
+  getRoleIconClass(roleCode: string): string {
+    const code = roleCode.toLowerCase();
+    if (code === 'admin') return 'pi-shield text-red-600';
+    if (code === 'manager') return 'pi-users text-blue-600';
+    if (code === 'editor') return 'pi-pencil text-amber-600';
+    if (code === 'viewer') return 'pi-eye text-green-600';
+    return 'pi-tag text-slate-600';
+  }
 
   ngOnInit() {
     // Load danh sách roles khi component khởi tạo
@@ -100,6 +185,7 @@ export class UserRolesComponent implements OnInit {
           name: n.name || 'Unknown',
         },
         children: (n.children || []).map(toTree),
+        expanded: true, // Auto-expand all nodes
       });
 
       // Fallback logic if nodes are empty
@@ -129,9 +215,26 @@ export class UserRolesComponent implements OnInit {
             name: n.name || 'Unknown',
           },
           children: [],
+          expanded: true,
         }));
+        // Build quick lookup map
+        this.orgNameMap = {};
+        this.orgTree.forEach((nd) => {
+          const code = (nd.data as any)?.code;
+          const name = (nd.data as any)?.name || nd.label || code;
+          if (code) this.orgNameMap[code] = name;
+        });
       } else {
         this.orgTree = nodes.map(toTree);
+        // Build lookup map recursively
+        this.orgNameMap = {};
+        const walk = (n: any) => {
+          const code = n.code || (n.data && n.data.code) || null;
+          const name = n.name || (n.data && n.data.name) || n.label || code;
+          if (code) this.orgNameMap[code] = name;
+          (n.children || []).forEach(walk);
+        };
+        nodes.forEach(walk);
       }
     });
 
@@ -151,24 +254,7 @@ export class UserRolesComponent implements OnInit {
             const firstUser = this.filteredUsers[0];
             this.selectedUser = firstUser;
             this.username = firstUser.username;
-
-            // Trigger same logic as onUserSelect
-            this.loading = true;
-            this.auth.ensureUserRole(firstUser.username).subscribe({
-              next: (result) => {
-                this.userRoles = result.roles;
-                this.loading = false;
-              },
-              error: (err) => {
-                this.loading = false;
-                this.toast.add({
-                  severity: 'error',
-                  summary: 'Lỗi',
-                  detail:
-                    err?.error?.message || 'Không thể tải vai trò người dùng',
-                });
-              },
-            });
+            this.lookup();
           }
         });
       }
@@ -199,40 +285,10 @@ export class UserRolesComponent implements OnInit {
 
   onUserSelect(event: AutoCompleteSelectEvent) {
     const user = event.value as UserSearchDto;
-    console.log('🔵 onUserSelect triggered:', user);
-
     if (user && user.username) {
       this.username = user.username;
-      this.selectedUser = user; // Ensure selectedUser is set
-
-      this.loading = true;
-
-      console.log('🚀 Calling ensureUserRole for:', user.username);
-
-      // Auto-assign viewer role if user doesn't have any role (silent/background)
-      // API sẽ tự động check, insert nếu cần, và trả về TOÀN BỘ roles của user
-      this.auth.ensureUserRole(user.username).subscribe({
-        next: (result) => {
-          console.log('✅ ensureUserRole response:', result);
-          console.log('   - Username:', result.username);
-          console.log('   - NewlyAssigned:', result.newlyAssigned);
-          console.log('   - Roles:', result.roles);
-          console.log('   - Message:', result.message);
-
-          // Nhận danh sách roles từ API luôn, không cần gọi getUserRoles nữa
-          this.userRoles = result.roles;
-          this.loading = false;
-        },
-        error: (err) => {
-          console.error('❌ ensureUserRole error:', err);
-          this.loading = false;
-          this.toast.add({
-            severity: 'error',
-            summary: 'Lỗi',
-            detail: err?.error?.message || 'Không thể tải vai trò người dùng',
-          });
-        },
-      });
+      this.selectedUser = user;
+      this.lookup();
     }
   }
 
@@ -248,14 +304,17 @@ export class UserRolesComponent implements OnInit {
       return;
     }
 
+    console.log('[UserRoles] Looking up roles for user:', usernameToLookup);
     this.loading = true;
 
     // Simply load user roles
     this.api.getUserRoles(usernameToLookup).subscribe({
       next: (urs) => {
-        this.userRoles = urs;
+        console.log('[UserRoles] Roles loaded, count:', urs.length);
+        this.userRoles.set(urs);
       },
-      error: () => {
+      error: (err) => {
+        console.error('[UserRoles] Lookup failed:', err);
         this.toast.add({
           severity: 'error',
           summary: 'Lỗi',
@@ -287,6 +346,15 @@ export class UserRolesComponent implements OnInit {
       return;
     }
 
+    console.log('[UserRoles] Assign payload:', {
+      username: usernameToAssign,
+      roleCode: this.selectedRoleCode,
+      scopeUnitCode: this.scopeUnitCode,
+      includeChildren: this.includeChildren,
+    });
+
+    this.loading = true;
+
     this.api
       .assignRole(
         usernameToAssign,
@@ -296,17 +364,44 @@ export class UserRolesComponent implements OnInit {
       )
       .subscribe({
         next: () => {
+          console.log(
+            '[UserRoles] Assign success, reloading roles for user:',
+            usernameToAssign
+          );
+
           this.toast.add({
             severity: 'success',
             summary: 'Thành công',
             detail: 'Đã gán vai trò',
           });
+
+          // Reset form fields
           this.selectedRoleCode = '';
           this.scopeUnitCode = '';
           this.selectedOrgNode = null;
-          this.lookup();
+
+          // CRITICAL FIX: Load roles for the SPECIFIC user we just assigned
+          // Don't rely on lookup() which may use stale selectedUser
+          this.api.getUserRoles(usernameToAssign).subscribe({
+            next: (urs) => {
+              console.log('[UserRoles] Roles loaded, count:', urs.length);
+              this.userRoles.set(urs);
+              this.loading = false;
+            },
+            error: (err) => {
+              console.error('[UserRoles] Failed to reload roles:', err);
+              this.loading = false;
+              this.toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Không thể tải lại danh sách vai trò',
+              });
+            },
+          });
         },
         error: (err) => {
+          console.error('[UserRoles] Assign failed:', err);
+          this.loading = false;
           this.toast.add({
             severity: 'error',
             summary: 'Lỗi',
@@ -349,7 +444,7 @@ export class UserRolesComponent implements OnInit {
           });
         }
         // Display all roles from API response
-        this.userRoles = result.roles;
+        this.userRoles.set(result.roles);
         this.loading = false;
       },
       error: (err) => {
@@ -364,6 +459,8 @@ export class UserRolesComponent implements OnInit {
   }
 
   revoke(ur: UserRoleDto) {
+    const usernameToRevoke = this.selectedUser?.username || this.username;
+
     this.confirm.confirm({
       message: `Thu hồi vai trò "${ur.roleName}" (${ur.roleCode})?`,
       icon: 'pi pi-exclamation-triangle',
@@ -371,21 +468,50 @@ export class UserRolesComponent implements OnInit {
       rejectLabel: 'Hủy',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
+        console.log(
+          '[UserRoles] Revoking role:',
+          ur.roleName,
+          'from user:',
+          usernameToRevoke
+        );
+        this.loading = true;
+
         this.api.revokeRole(ur.id).subscribe({
           next: () => {
+            console.log('[UserRoles] Revoke success, reloading roles');
             this.toast.add({
               severity: 'success',
               summary: 'Thành công',
               detail: 'Đã thu hồi vai trò',
             });
-            this.lookup();
+
+            // Reload roles for the specific user whose role was revoked
+            this.api.getUserRoles(usernameToRevoke).subscribe({
+              next: (urs) => {
+                console.log(
+                  '[UserRoles] Roles loaded after revoke, count:',
+                  urs.length
+                );
+                this.userRoles.set(urs);
+                this.loading = false;
+              },
+              error: (err) => {
+                console.error(
+                  '[UserRoles] Failed to reload roles after revoke:',
+                  err
+                );
+                this.loading = false;
+              },
+            });
           },
           error: (err) => {
+            console.error('[UserRoles] Revoke failed:', err);
             this.toast.add({
               severity: 'error',
               summary: 'Lỗi',
               detail: err?.error?.message || 'Không thể thu hồi vai trò',
             });
+            this.loading = false;
           },
         });
       },
@@ -407,7 +533,7 @@ export class UserRolesComponent implements OnInit {
   onUserCleared() {
     this.selectedUser = null;
     this.username = '';
-    this.userRoles = [];
+    this.userRoles.set([]);
     this.selectedRoleCode = '';
     // keep scope selection as-is; comment out to also reset scope
     // this.clearScope();

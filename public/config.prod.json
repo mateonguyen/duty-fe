@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "/api",
+  "keycloak": {
+    "enabled": true,
+    "url": "https://accounts.h05.bca",
+    "realm": "master",
+    "clientId": "lichtruc-client",
+    "redirectUri": ""
+  }
+}

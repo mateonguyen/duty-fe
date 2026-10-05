@@ -1,130 +1,46 @@
-.page {
-  padding: 16px;
-}
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.table th,
-.table td {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-
-/* Search box: place icon inside input and style placeholder */
-.search-box {
-  position: relative;
-
-  > i {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6b7280; /* slate-500 */
-    z-index: 1;
-  }
-
-  input[pinputtext] {
-    padding-left: 2.25rem !important;
-    &::placeholder {
-      color: #9ca3af; /* gray-400 */
-    }
-  }
-}
-
-/* Permissions dialog */
-:host ::ng-deep .p-dialog .p-dialog-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.perm-panel {
-  padding: 12px 16px 4px 16px;
-  max-height: 70vh;
-  overflow: auto;
-}
-
-.perm-item {
-  display: grid;
-  grid-template-columns: 28px minmax(120px, auto) 1fr;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 6px;
-  border-radius: 6px;
-}
-.perm-item:hover {
-  background: #f8fafc;
-}
-.perm-item .code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-  font-size: 0.875rem;
-  color: #7c3aed;
-  background: #f3e8ff;
-  padding: 0.125rem 0.5rem;
-  border-radius: 4px;
-  font-weight: 500;
-}
-.perm-item .name {
-  font-weight: 500;
-}
-.perm-item .desc {
-  grid-column: 2 / -1;
-  color: #64748b; /* slate-500 */
-}
-
-.saving {
-  padding: 8px 6px;
-  color: #0f766e;
-}
-
-/* Permission group header */
-.perm-group-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  background: #f1f5f9;
-  border-radius: 6px;
-  padding: 6px 8px;
-  margin-top: 8px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
-}
-.perm-group-header:hover {
-  background: #e0e7ef;
-}
-.perm-group-header .group-label {
-  text-transform: capitalize;
-  font-size: 1rem;
-  color: #0f172a;
-}
-.perm-group-header .pi {
-  font-size: 1.1rem;
-  color: #64748b;
-}
-.perm-group-header p-checkbox {
-  margin-left: 8px;
-}
-.perm-group-header .flex-1 {
-  flex: 1;
-}
-.search-box {
-  position: relative;
-  display: inline-block;
-}
-.search-box > i {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6b7280;
-  z-index: 1;
-}
-.search-box input[pinputtext] {
-  padding-left: 2.25rem !important;
-  &::placeholder {
-    color: #9ca3af;
-  }
-}
+:host { display: block; }
+.roles-page-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 12px; }
+.roles-page-heading h2 { margin:0; font-size:18px; font-weight:700; color:#123b2b; }
+.roles-page-heading p { margin:3px 0 0; font-size:12px; color:#64776e; }
+.role-catalog { background:#fff; border:1px solid #dce8e0; border-radius:12px; padding:12px; box-shadow:0 2px 8px rgba(25,60,40,.04); }
+.role-catalog-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:12px; min-height:36px; }
+.roles-count { font-size:13px; font-weight:700; color:#496557; }
+.roles-bulk-actions { display:flex; align-items:center; gap:8px; font-size:12px; color:#556a60; }
+.search-box { position:relative; display:inline-flex; align-items:center; }
+.search-box > i { position:absolute; left:11px; color:#7a8b82; z-index:1; font-size:13px; }
+.search-box input { padding-left:32px; width:100%; }
+.roles-search { width:min(290px,35vw); margin-left:auto; }
+.role-table { border:1px solid #e2eae5; border-radius:8px; overflow:auto; }
+.role-row { display:grid; grid-template-columns:34px minmax(220px,2fr) minmax(90px,.65fr) 95px 115px minmax(210px,.8fr); align-items:center; gap:12px; min-width:830px; min-height:51px; padding:5px 12px; border-top:1px solid #edf1ee; font-size:12px; }
+.role-row:first-child { border-top:0; }
+.role-row:not(.role-table-head):hover { background:#f7fbf8; }
+.role-table-head { min-height:32px; background:#f4f8f5; color:#61766a; font-size:11px; font-weight:700; }
+.role-select { display:flex; align-items:center; }
+.role-select input { accent-color:#006e45; width:15px; height:15px; margin:0; }
+.role-primary { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.role-primary strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#143b2b; font-size:12px; }
+.role-primary code { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:inherit; color:#819187; font-size:11px; }
+.role-status { display:inline-block; color:#13744b; background:#eaf6ef; padding:3px 7px; border-radius:5px; font-size:11px; }
+.role-status.inactive { color:#a24841; background:#fff0ed; }
+.role-kind { color:#617466; }
+.role-permission-count { color:#587362; }
+.role-row-actions { display:flex; align-items:center; justify-content:flex-end; gap:2px; white-space:nowrap; }
+.role-actions-heading { text-align:right; }
+:host ::ng-deep .role-row-actions .p-button { padding:4px 6px; font-size:11px; }
+.role-empty { padding:36px 12px; text-align:center; color:#718078; font-size:13px; }
+:host ::ng-deep .p-dialog .p-dialog-header { padding:12px 16px; border-bottom:1px solid #e5ece7; }
+.permission-help { margin:8px 16px 0; color:#6d785f; font-size:11px; }
+.perm-panel { padding:8px 14px 4px; max-height:68vh; overflow:auto; columns:2; column-gap:10px; }
+.perm-group { display:inline-block; width:100%; break-inside:avoid; border:1px solid #e2eae5; border-radius:7px; margin:0 0 9px; overflow:hidden; vertical-align:top; }
+.perm-group-header { display:flex; align-items:center; gap:7px; min-height:34px; padding:5px 8px; background:#f3f8f5; font-weight:700; color:#234834; font-size:12px; cursor:pointer; }
+.perm-group-header:hover { background:#eaf4ee; }
+.perm-group-header .pi { font-size:11px; color:#60806b; }
+.perm-group-header .group-label { flex:1; }
+.perm-group-header .group-count { color:#748a7b; font-size:11px; font-weight:400; }
+.perm-item { display:flex; align-items:center; gap:8px; min-height:31px; padding:5px 8px; border-top:1px solid #f0f3f0; font-size:12px; cursor:pointer; }
+.perm-item:hover { background:#f8fbf9; }
+.perm-item .name { flex:1; min-width:0; line-height:1.3; color:#253b2f; }
+.unused { color:#91602e; background:#fff5df; font-size:10px; border-radius:4px; padding:2px 5px; white-space:nowrap; }
+.saving { padding:8px; color:#0f766e; }
+.system-role-note { margin-right:auto; color:#63766a; font-size:12px; }
+@media(max-width:700px) { .roles-page-heading { align-items:flex-start; }.roles-page-heading p { max-width:320px; }.perm-panel { columns:1; }.roles-search { width:180px; } }

@@ -1,0 +1,29 @@
+<div class="docs-wrapper">
+  <aside class="docs-sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-title">Tài liệu hướng dẫn</h2>
+      <p class="sidebar-subtitle">Duty Roster System</p>
+    </div>
+    <div class="search-box">
+      <i class="pi pi-search search-icon"></i>
+      <input
+        type="text"
+        placeholder="Tìm kiếm tài liệu..."
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </div>
+    <app-docs-nav-tree
+      [toc]="filtered()"
+      [activeSlug]="slug()"
+      (navigate)="onNavigate($event)"
+    ></app-docs-nav-tree>
+  </aside>
+  <main class="docs-content">
+    <app-docs-viewer
+      [slug]="slug()"
+      [toc]="toc()"
+      (navigate)="onNavigate($event)"
+    ></app-docs-viewer>
+  </main>
+</div>

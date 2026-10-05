@@ -1,32 +1,22 @@
-<app-loading-spinner [isLoading]="loading()" />
+<app-loading-spinner [isLoading]="loading()" [minDurationMs]="500" />
 <p-toast></p-toast>
 
-<div class="roster-view-container" *ngIf="roster(); else loadingTpl">
+<div class="roster-view-container" *ngIf="roster() && !loadError(); else loadingTpl">
   <div class="roster-view-card">
     <!-- Modern Header: 3-Line Structure -->
     <div class="roster-view__header">
       <div class="roster-view__header-left">
         <div class="roster-title-block">
+          <span class="roster-view__eyebrow">CHI TIẾT LỊCH TRỰC</span>
           <!-- LINE 1: Roster Title -->
-          <h2 class="roster-view__title">
+          <h1 class="roster-view__title">
             {{ roster()!.name }}
-          </h2>
+          </h1>
           <!-- LINE 2: Time Range -->
           <div class="roster-view__meta">
-            <i class="pi pi-calendar"></i>
-            <span
-              >{{ roster()!.periodStart | date : "dd/MM/yyyy" }} –
-              {{ roster()!.periodEnd | date : "dd/MM/yyyy" }}</span
-            >
-          </div>
-          <!-- LINE 3: Unit Info -->
-          <div class="roster-view__pills">
-            <div class="pill pill-shift">
-              <i class="pi pi-building"></i>
-              <span
-                ><strong>{{ roster()!.scopeUnitName }}</strong></span
-              >
-            </div>
+            <span><i class="pi pi-calendar"></i>{{ roster()!.periodStart | date : "dd/MM/yyyy" }} – {{ roster()!.periodEnd | date : "dd/MM/yyyy" }}</span>
+            <span><i class="pi pi-building"></i>{{ roster()!.scopeUnitName }}</span>
+            <span><i class="pi pi-users"></i>{{ assignmentCount() }} lượt phân công</span>
           </div>
         </div>
       </div>
@@ -35,42 +25,47 @@
           pButton
           icon="pi pi-arrow-left"
           class="p-button-sm p-button-outlined btn-exit"
-          label="Thoát"
+          label="Quay lại"
           (click)="goBack()"
         ></button>
         <button
           pButton
           icon="pi pi-eye"
           class="p-button-sm p-button-outlined"
-          label="Giám sát kỳ lịch này"
-          pTooltip="Xem màn hình giám sát trực thời gian thực"
+          label="Giám sát trực"
+          pTooltip="Xem người đang trực ở đơn vị này tại thời điểm hiện tại"
           tooltipPosition="bottom"
           (click)="goToMonitoring()"
         ></button>
-        <div class="view-mode-group">
+        <div class="view-mode-group" role="group" aria-label="Cách xem lịch trực">
           <button
             pButton
             icon="pi pi-calendar"
+            label="Lịch tháng"
+            aria-label="Xem lịch tháng"
+            [attr.aria-pressed]="viewMode() === 'calendar'"
             class="p-button-sm"
             [class.p-button-outlined]="viewMode() !== 'calendar'"
-            (click)="viewMode.set('calendar')"
+            (click)="switchViewMode('calendar')"
           ></button>
           <button
             pButton
             icon="pi pi-table"
+            label="Bảng"
+            aria-label="Xem dạng bảng"
+            [attr.aria-pressed]="viewMode() === 'table'"
             class="p-button-sm"
             [class.p-button-outlined]="viewMode() !== 'table'"
-            (click)="viewMode.set('table')"
+            (click)="switchViewMode('table')"
           ></button>
         </div>
+        <span class="roster-status" [class.roster-status--draft]="roster()!.status === 'DRAFT'"><i class="pi" [class.pi-check-circle]="roster()!.status !== 'DRAFT'" [class.pi-pencil]="roster()!.status === 'DRAFT'"></i>{{ statusLabel() }}</span>
         <button
-          *ngIf="canPublish()"
+          *ngIf="canPublish() && roster()!.status === 'DRAFT'"
           pButton
-          [icon]="isPublished() ? 'pi pi-check-circle' : 'pi pi-upload'"
-          [label]="publishButtonLabel()"
+          icon="pi pi-upload"
+          label="Xuất bản"
           class="p-button-sm btn-publish"
-          [disabled]="publishButtonDisabled()"
-          [class.btn-published]="isPublished()"
           (click)="handlePublish()"
         ></button>
       </div>
@@ -78,7 +73,19 @@
 
     <!-- Filter Section with Location + Shift Tabs -->
     <div class="roster-view__filters">
-      <div class="filter-row" *ngIf="enabledLocations().length > 0">
+      <!-- 
+        Location Filter: Show when in calendar mode OR when table mode = byShift 
+        (because columns are shifts, so we filter by location)
+      -->
+      <div
+        class="filter-row"
+        *ngIf="
+          enabledLocations().length > 0 &&
+          (viewMode() === 'calendar' ||
+            (viewMode() === 'table' && tableViewMode() === 'byShift'))
+        "
+      >
+        <div class="filter-heading"><span>Địa điểm</span></div>
         <div class="location-tabs-wrapper">
           <button
             *ngFor="let location of enabledLocations()"
@@ -93,10 +100,20 @@
           </button>
         </div>
       </div>
+
+      <!-- 
+        Shift Filter: Show when in calendar mode OR when table mode = byLocation
+        (because columns are locations, so we filter by shift)
+      -->
       <div
         class="filter-row"
-        *ngIf="shifts().length > 0 && viewMode() === 'calendar'"
+        *ngIf="
+          shifts().length > 0 &&
+          (viewMode() === 'calendar' ||
+            (viewMode() === 'table' && tableViewMode() === 'byLocation'))
+        "
       >
+        <div class="filter-heading"><span>Ca trực</span></div>
         <div class="shift-tabs-wrapper">
           <button
             *ngFor="let shift of shifts()"
@@ -119,11 +136,19 @@
 
     <!-- Calendar view -->
     <div class="roster-view__calendar" *ngIf="viewMode() === 'calendar'">
+      <div class="calendar-context">
+        <div class="calendar-context__selection"><strong>{{ currentShift()?.name || 'Chưa có ca trực' }}</strong><span>{{ currentShift()?.timeRange || '' }} · {{ currentLocation()?.name || 'Chưa có địa điểm' }}</span></div>
+        <span class="calendar-context__count">{{ visibleAssignmentCount() }} lượt phân công</span>
+        <div class="calendar-context__legend"><span><i class="pi pi-star-fill"></i> Chỉ huy</span><span><i class="legend-staff"></i> Cán bộ</span></div>
+        <small class="calendar-context__hint">Chọn ngày để xem đầy đủ</small>
+      </div>
       <app-month-board
         [from]="periodFrom()"
         [to]="periodTo()"
         [selectedShiftId]="selectedShiftId()"
         [selectedLocationId]="selectedLocationId()"
+        [selectedShiftName]="currentShift()?.name || ''"
+        [selectedLocationName]="currentLocation()?.name || ''"
         [assignments]="assignments()"
         [readOnly]="true"
       />
@@ -139,14 +164,20 @@
         [assignments]="assignments()"
         [selectedLocationId]="selectedLocationId()"
         [selectedShiftId]="selectedShiftId()"
+        (viewModeChange)="onTableViewModeChange($event)"
       />
     </div>
   </div>
 </div>
 
 <ng-template #loadingTpl>
-  <div class="roster-view-loading">
+  <div class="roster-view-loading" *ngIf="loadError(); else loadingState">
+    <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+    <p>Không tải được chi tiết lịch trực.</p>
+    <button pButton type="button" label="Thử lại" icon="pi pi-refresh" class="p-button-sm" (click)="loadRoster()"></button>
+  </div>
+  <ng-template #loadingState><div class="roster-view-loading">
     <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
     <p>Đang tải lịch trực...</p>
-  </div>
+  </div></ng-template>
 </ng-template>

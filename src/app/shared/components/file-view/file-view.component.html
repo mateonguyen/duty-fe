@@ -1,0 +1,96 @@
+<div class="file-view-container" *ngIf="visible">
+  <!-- Header với thông tin file - Ẩn khi dùng trong splitter -->
+  <div class="file-header" *ngIf="currentFileName && showHeader">
+    <div class="file-header-content">
+      <div class="file-info">
+        <i
+          class="pi"
+          [ngClass]="{
+            'pi-file-pdf': currentFileType === 'pdf',
+            'pi-file-word': currentFileType === 'word',
+            'pi-file-excel': currentFileType === 'excel',
+            'pi-file': currentFileType === 'other'
+          }"
+          class="file-icon"
+        ></i>
+        <div class="file-details">
+          <h3 class="file-name" [title]="currentFileName">
+            {{ currentFileName }}
+          </h3>
+          <span class="file-type">
+            <span *ngIf="currentFileType === 'pdf'">PDF Document</span>
+            <span *ngIf="currentFileType === 'word'">Word Document</span>
+            <span *ngIf="currentFileType === 'excel'">Excel Document</span>
+            <span *ngIf="currentFileType === 'other'">Document</span>
+          </span>
+        </div>
+      </div>
+      <div
+        class="file-actions"
+        *ngIf="allowDownload && !isLoading && !hasError && selectedPdfSrc"
+      >
+        <button
+          class="action-btn"
+          pButton
+          icon="pi pi-download"
+          pTooltip="Tải xuống"
+          tooltipPosition="bottom"
+          (click)="downloadFile()"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-container" *ngIf="hasError && !isLoading">
+    <div class="error-content">
+      <i class="pi pi-exclamation-triangle error-icon"></i>
+      <h3 class="error-title">Không thể tải file</h3>
+      <p class="error-message">
+        {{ errorMessage || "Đã xảy ra lỗi khi tải file" }}
+      </p>
+      <button
+        class="retry-btn"
+        pButton
+        label="Thử lại"
+        icon="pi pi-refresh"
+        (click)="retryLoad()"
+      ></button>
+    </div>
+  </div>
+
+  <!-- PDF Viewer -->
+  <div
+    class="pdf-viewer-wrapper"
+    *ngIf="currentFileName && (selectedPdfSrc || isLoading)"
+  >
+    <div class="pdf-viewer-container">
+      <!-- PDF Viewer - Backend đã convert tất cả file sang PDF để preview -->
+      <ng2-pdfjs-viewer
+        #pdfViewer
+        *ngIf="selectedPdfSrc"
+        [pdfSrc]="selectedPdfSrc"
+        [viewerFolder]="'assets/pdfjs'"
+        [externalWindow]="false"
+        [theme]="'light'"
+        [download]="allowDownload"
+        [print]="allowPrint"
+        [downloadFileName]="currentFileName"
+        class="pdf-viewer"
+      >
+      </ng2-pdfjs-viewer>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div
+    class="empty-container"
+    *ngIf="!currentFileName && !isLoading && !hasError"
+  >
+    <div class="empty-content">
+      <i class="pi pi-file empty-icon"></i>
+      <p class="empty-text">Chưa có file nào được chọn</p>
+      <span class="empty-hint">Vui lòng chọn file để xem</span>
+    </div>
+  </div>
+</div>

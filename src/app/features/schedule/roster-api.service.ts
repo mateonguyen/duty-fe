@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { RosterListItem } from './schedule';
 
@@ -52,6 +52,8 @@ export interface AssignmentReadFullDto {
   unitCode: string;
   unitName: string;
   positionTitle?: string;
+  positionLevel?: number | null;
+  isLeader: boolean;
   assignmentType: string;
   locationId?: number | null;
   locationName?: string;
@@ -118,9 +120,11 @@ export class RosterApiService {
   checkPublishedConflict(
     dto: OverlapCheckDto
   ): Observable<PublishedConflictResult> {
+    const headers = new HttpHeaders({ 'X-Scope-Code': dto.scopeCode });
     return this.http.post<PublishedConflictResult>(
       `${this.baseUrl}/check-published-conflict`,
-      dto
+      dto,
+      { headers }
     );
   }
 

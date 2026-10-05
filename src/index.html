@@ -1,13 +1,105 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DutyFe</title>
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-</head>
-<body>
-  <app-root></app-root>
-</body>
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>LỊCH TRỰC</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <style>
+      /* Full-page splash shown during SSO callback — uses app asset loader */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        /* brand green gradient for consistent auth UX */
+        background: linear-gradient(
+          135deg,
+          #016630 0%,
+          #016630 50%,
+          #016630 100%
+        );
+        color: #ffffff;
+        display: none; /* enabled by .splash-on on <html> */
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        font-family: "Google Sans", Arial, sans-serif;
+      }
+      html.splash-on #app-splash {
+        display: flex;
+      }
+      .splash-box {
+        text-align: center;
+        padding: 28px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .splash-title {
+        font-size: 18px;
+        margin: 0;
+        letter-spacing: 0.2px;
+        color: rgba(255, 255, 255, 0.95);
+      }
+      .splash-sub {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      /* Inline fallback loader styling (used before Angular styles load) */
+      .splash-loader {
+        width: 96px;
+        height: 96px;
+        display: block;
+      }
+    </style>
+    <script>
+      // Minimal, runs before Angular bootstraps
+      (function () {
+        var q = new URLSearchParams(window.location.search);
+        var hasCallback =
+          q.has("code") ||
+          q.has("state") ||
+          q.has("iss") ||
+          window.location.pathname.endsWith("/callback");
+        if (hasCallback) {
+          document.documentElement.classList.add("splash-on");
+        }
+        // Expose a global to hide splash precisely when auth finishes
+        window.hideSplash = function () {
+          document.documentElement.classList.remove("splash-on");
+          var el = document.getElementById("app-splash");
+          if (el) {
+            el.parentNode && el.parentNode.removeChild(el);
+          }
+        };
+        // Hard fallback: prevent infinite splash > 12s
+        setTimeout(function () {
+          if (document.documentElement.classList.contains("splash-on")) {
+            console.warn("[Splash] Hard fallback hide after 12s");
+            window.hideSplash();
+            if (!window.authPhase) {
+              window.authPhase = "unauthenticated";
+            }
+          }
+        }, 12000);
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- Pre-Angular splash overlay for SSO callback UX -->
+    <div id="app-splash" role="status" aria-live="polite">
+      <div class="splash-box">
+        <img
+          src="assets/loading.svg"
+          class="splash-loader"
+          alt="Loading"
+          aria-hidden="true"
+        />
+        <div class="splash-title">Đang đăng nhập…</div>
+        <div class="splash-sub">Vui lòng chờ trong giây lát</div>
+      </div>
+    </div>
+    <app-root></app-root>
+  </body>
 </html>

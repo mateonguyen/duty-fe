@@ -28,5 +28,5 @@ export const SCHEDULE_ROUTES: Routes = [
     data: { permissions: ['roster.edit'] },
   },
   { path: 'view/:id', component: PublicRosterComponent },
-  { path: 'monitoring', component: LiveMonitorComponent },
+  { path: 'monitoring', component: LiveMonitorComponent, canActivate: [AuthGuardCanActivate], data: { permissions: ['roster.view'] } },
 ];

@@ -1,0 +1,79 @@
+/**
+ * Docs Theme Variables
+ * Aligned with Duty Roster app business theme (green primary, neutral backgrounds)
+ */
+
+:root {
+  /* Primary Colors - Match app green theme */
+  --docs-primary: #10b981; /* emerald-500 - app primary */
+  --docs-primary-dark: #059669; /* emerald-600 */
+  --docs-primary-darker: #047857; /* emerald-700 */
+  --docs-primary-light: #d1fae5; /* emerald-100 */
+  --docs-primary-lighter: #ecfdf5; /* emerald-50 */
+
+  /* Neutral Colors - Match app surface/text palette */
+  --docs-bg-page: #f5f7f9; /* Match app pages background */
+  --docs-bg-card: #ffffff; /* White cards */
+  --docs-bg-sidebar: #ffffff; /* Clean white sidebar */
+  --docs-bg-hover: #f3f4f6; /* gray-100 */
+  --docs-bg-input: #f9fafb; /* gray-50 */
+
+  /* Text Colors */
+  --docs-text-primary: #111827; /* gray-900 */
+  --docs-text-secondary: #374151; /* gray-700 */
+  --docs-text-tertiary: #6b7280; /* gray-500 */
+  --docs-text-muted: #9ca3af; /* gray-400 */
+
+  /* Border Colors */
+  --docs-border: #e5e7eb; /* gray-200 */
+  --docs-border-light: #f3f4f6; /* gray-100 */
+  --docs-border-dark: #d1d5db; /* gray-300 */
+
+  /* Shadow */
+  --docs-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --docs-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --docs-shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.07);
+
+  /* Spacing - Match app consistent spacing */
+  --docs-spacing-xs: 0.5rem;
+  --docs-spacing-sm: 0.75rem;
+  --docs-spacing-md: 1rem;
+  --docs-spacing-lg: 1.5rem;
+  --docs-spacing-xl: 2rem;
+
+  /* Typography */
+  --docs-font-size-xs: 0.75rem;
+  --docs-font-size-sm: 0.875rem;
+  --docs-font-size-base: 0.9375rem;
+  --docs-font-size-lg: 1.125rem;
+  --docs-font-size-xl: 1.375rem;
+  --docs-font-size-2xl: 1.75rem;
+
+  --docs-line-height: 1.6;
+  --docs-font-weight-normal: 400;
+  --docs-font-weight-medium: 500;
+  --docs-font-weight-semibold: 600;
+
+  /* Border Radius - Subtle, not overly rounded */
+  --docs-radius-sm: 4px;
+  --docs-radius-md: 6px;
+  --docs-radius-lg: 8px;
+
+  /* Transitions */
+  --docs-transition-fast: 0.12s ease;
+  --docs-transition-base: 0.15s ease;
+  --docs-transition-slow: 0.2s ease;
+}
+
+/**
+ * Usage Example:
+ * 
+ * .my-component {
+ *   background: var(--docs-bg-card);
+ *   color: var(--docs-text-primary);
+ *   border: 1px solid var(--docs-border);
+ *   border-radius: var(--docs-radius-md);
+ *   padding: var(--docs-spacing-md);
+ *   box-shadow: var(--docs-shadow-sm);
+ * }
+ */

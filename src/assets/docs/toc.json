@@ -1,0 +1,26 @@
+[
+  { "title": "Giới thiệu", "slug": "intro" },
+  { "title": "Bắt đầu nhanh", "slug": "quickstart" },
+  {
+    "title": "Cán bộ sử dụng",
+    "children": [
+      { "title": "Lịch trực của tôi", "slug": "user/my-roster" },
+      { "title": "Thông báo", "slug": "user/notifications" }
+    ]
+  },
+  {
+    "title": "Quản trị hệ thống",
+    "children": [
+      {
+        "title": "Danh mục",
+        "children": [{ "title": "Ca trực", "slug": "admin/catalogs/shifts" }]
+      },
+      {
+        "title": "Phân quyền",
+        "children": [
+          { "title": "Gán vai trò", "slug": "admin/access/assign-roles" }
+        ]
+      }
+    ]
+  }
+]

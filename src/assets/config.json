@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "http://localhost:5073",
+  "keycloak": {
+    "enabled": true,
+    "url": "http://localhost:8990",
+    "realm": "master",
+    "clientId": "lichtruc-client",
+    "redirectUri": "http://localhost:4200/"
+  }
+}

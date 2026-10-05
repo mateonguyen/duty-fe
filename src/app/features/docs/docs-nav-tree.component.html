@@ -1,0 +1,55 @@
+<ul class="nav-root">
+  <ng-container *ngFor="let n of toc">
+    <li>
+      <div
+        class="nav-line"
+        [class.active]="n.slug === activeSlug"
+        (click)="n.slug ? onClick(n) : toggle(n)"
+      >
+        <span
+          class="toggle"
+          *ngIf="n.children"
+          (click)="toggle(n); $event.stopPropagation()"
+          >{{ isExpanded(n) ? "▾" : "▸" }}</span
+        >
+        <span class="title">{{ n.title }}</span>
+      </div>
+      <ul *ngIf="n.children && isExpanded(n)" class="nav-children">
+        <ng-container *ngFor="let c of n.children">
+          <li>
+            <div
+              class="nav-line"
+              [class.active]="c.slug === activeSlug"
+              (click)="c.slug ? onClick(c) : toggle(c)"
+            >
+              <span
+                class="toggle"
+                *ngIf="c.children"
+                (click)="toggle(c); $event.stopPropagation()"
+                >{{ isExpanded(c) ? "▾" : "▸" }}</span
+              >
+              <span class="title">{{ c.title }}</span>
+            </div>
+            <ul *ngIf="c.children && isExpanded(c)" class="nav-children">
+              <li *ngFor="let g of c.children">
+                <div
+                  class="nav-line"
+                  [class.active]="g.slug === activeSlug"
+                  (click)="g.slug ? onClick(g) : toggle(g)"
+                >
+                  <span
+                    class="toggle"
+                    *ngIf="g.children"
+                    (click)="toggle(g); $event.stopPropagation()"
+                    >{{ isExpanded(g) ? "▾" : "▸" }}</span
+                  >
+                  <span class="title">{{ g.title }}</span>
+                </div>
+              </li>
+            </ul>
+          </li>
+        </ng-container>
+      </ul>
+    </li>
+  </ng-container>
+</ul>

@@ -7,6 +7,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
@@ -18,7 +19,6 @@ import {
   LocationConfig,
 } from './location-tabs/location-tabs.component';
 import { MonthBoardComponent } from './month-board/month-board.component';
-import { FormsModule } from '@angular/forms';
 import { ScopeService, ScopeRef } from '../../../core/services/scope.service';
 import { DiagnosticsService } from '../../../core/diagnostics/diagnostics.service';
 import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -52,6 +52,7 @@ import {
   OrgUnitNode,
 } from '../../admin/system-config/organization.service';
 import { Router, ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../../core/auth/auth.service';
 import { ScopePickerComponent } from '../../../shared/components/scope-picker/scope-picker.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 
@@ -66,7 +67,7 @@ export interface OrgUnitNodeWithStaff extends OrgUnitNode {
   selector: 'app-schedule-page',
   imports: [
     CommonModule,
-    FormsModule,
+    RouterModule,
     ButtonModule,
     ConfirmDialogModule,
     StaffTreeComponent,
@@ -81,6 +82,7 @@ export interface OrgUnitNodeWithStaff extends OrgUnitNode {
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './schedule-page.component.html',
+  styleUrls: ['./schedule-page.component.scss'],
 })
 export class SchedulePageComponent implements OnInit {
   private scopeService = inject(ScopeService);
@@ -90,6 +92,7 @@ export class SchedulePageComponent implements OnInit {
   private rosterApi = inject(RosterApiService);
   private toast = inject(MessageService);
   private route = inject(ActivatedRoute);
+  private auth = inject(AuthService);
 
   // Edit mode detection
   readonly rosterId = signal<number | null>(null);
@@ -102,7 +105,14 @@ export class SchedulePageComponent implements OnInit {
   readonly isDraft = computed(() => this.rosterStatus() === 'DRAFT');
   readonly isPublished = computed(() => this.rosterStatus() === 'PUBLISHED');
   readonly isLocked = computed(() => this.rosterStatus() === 'LOCKED');
-  readonly canEdit = computed(() => this.isDraft());
+  readonly canEdit = computed(() =>
+    this.isDraft() &&
+    this.auth.hasPermission(this.isEditMode() ? 'roster.edit' : 'roster.create') &&
+    this.auth.hasPermission('assignment.create')
+  );
+  readonly canPublish = computed(() =>
+    this.canEdit() && this.auth.hasPermission('roster.publish')
+  );
 
   // Flag to prevent confirmation dialog during initial auto-selection
   private isInitializing = true;
@@ -114,8 +124,25 @@ export class SchedulePageComponent implements OnInit {
   // OrgId from active scope (for staff tree and API calls)
   activeOrgId = computed(() => this.activeScope()?.orgId || null);
 
+  // Observable from activeScope signal (created in injection context)
+  private activeScope$ = toObservable(this.activeScope);
+
+  // Observable for roster changes (for conflict checking)
+  private rosterChanges$ = toObservable(
+    computed(() => {
+      const scopeCode = this.activeScope()?.orgId || null;
+      const r = this.roster();
+      const from = r.from || null;
+      const to = r.to || null;
+      const locId = r.locationId ?? null;
+      return { scopeCode, from, to, locId };
+    })
+  );
+
   // Global page loading state
   pageLoading = signal(false);
+  loadingText = signal<string>('Đang tải dữ liệu...');
+  subText = signal<string>('Vui lòng chờ trong giây lát');
 
   // Published-roster conflict state (for date range + location)
   checkingConflict = signal<boolean>(false);
@@ -196,15 +223,16 @@ export class SchedulePageComponent implements OnInit {
    * Initialize NEW roster mode (create)
    */
   private initializeNewRoster(): void {
+    console.log('[RosterForm] loading ON: init create mode');
+    this.pageLoading.set(true);
+    this.loadingText.set('Đang tải dữ liệu...');
+    this.subText.set('Vui lòng chờ trong giây lát');
+
     // Ensure default date range is set on initialization (for create mode)
     this.ensureDefaultMonthRange();
 
-    // Load locations from API
-    this.svc.loadLocations();
-
-    // Wait for locations to load, then initialize configs
-    // TODO: Make loadLocations() return observable for better flow
-    setTimeout(() => this.initializeLocationConfigs(), 500);
+    // Load locations will be triggered when scope is selected
+    // (moved to scope change handler to ensure scopeCode is available)
 
     // Load scopes immediately; route is protected by guard
     this.scopeService.load('roster.create').subscribe({
@@ -214,12 +242,34 @@ export class SchedulePageComponent implements OnInit {
         if (!this.activeScope() && items.length > 0) {
           const first = items[0];
           this.activeScope.set(first);
+          // Load locations with scopeCode after scope is set
+          // Explicitly load staff/tree for this scope to ensure initial data loads
+          // (reactive subscriptions may miss initial scope change)
+          this.orgService
+            .fetchAllWithStaff(first.orgId, first.includeChildren || false)
+            .subscribe({
+              next: (tree) => {
+                const mapped = (tree ?? []).map((n: any) => this.mapNode(n));
+                this.fullOrgTree.set(mapped);
+                this.orgTreeWithStaff.set(mapped);
+              },
+              error: (err) =>
+                console.error('[SchedulePage] Failed to load org tree:', err),
+            });
+          this.svc.loadStaffForRoster(
+            first.orgId,
+            first.includeChildren || false
+          );
           // Trigger same logic as manual selection
           // isInitializing=true prevents confirmation dialog on first auto-select
           this.onScopeChange(first);
           this.diag?.incStaffTreeReload();
           // Mark initialization complete after first scope selection
-          setTimeout(() => (this.isInitializing = false), 0);
+          setTimeout(() => {
+            this.isInitializing = false;
+            console.log('[RosterForm] loading OFF');
+            this.pageLoading.set(false);
+          }, 0);
         }
         console.debug('[SchedulePage] Scopes loaded for roster.create:', items);
       },
@@ -228,21 +278,30 @@ export class SchedulePageComponent implements OnInit {
     });
 
     // Reactive pipeline for loading staff tree and data
-    toObservable(this.activeScope)
+    this.activeScope$
       .pipe(
-        map((s) => s?.orgId ?? null),
-        distinctUntilChanged(),
-        tap((orgId) => {
+        map((s) => ({
+          orgId: s?.orgId ?? null,
+          includeChildren: s?.includeChildren ?? false,
+        })),
+        distinctUntilChanged(
+          (a, b) =>
+            a.orgId === b.orgId && a.includeChildren === b.includeChildren
+        ),
+        tap(({ orgId }) => {
           if (!orgId) {
             this.fullOrgTree.set(null);
             this.orgTreeWithStaff.set(null);
           }
         }),
-        filter((orgId): orgId is string => !!orgId),
-        switchMap((orgId) =>
+        filter(
+          (data): data is { orgId: string; includeChildren: boolean } =>
+            !!data.orgId
+        ),
+        switchMap(({ orgId, includeChildren }) =>
           forkJoin({
-            tree: this.orgService.fetchAllWithStaff(orgId),
-            staff: this.svc.loadStaffForRoster$(orgId),
+            tree: this.orgService.fetchAllWithStaff(orgId, includeChildren),
+            staff: this.svc.loadStaffForRoster$(orgId, includeChildren),
           }).pipe(
             catchError((err) => {
               console.error('[SchedulePage] staff-tree load error', err);
@@ -262,17 +321,11 @@ export class SchedulePageComponent implements OnInit {
       });
 
     // Reactive published-conflict checks: run when scope/date/location changes
-    toObservable(
-      computed(() => {
-        const scopeCode = this.activeScope()?.orgId || null;
-        const r = this.roster();
-        const from = r.from || null;
-        const to = r.to || null;
-        const locId = r.locationId ?? null;
-        return scopeCode && from && to ? { scopeCode, from, to, locId } : null;
-      })
-    )
+    this.rosterChanges$
       .pipe(
+        map(({ scopeCode, from, to, locId }) =>
+          scopeCode && from && to ? { scopeCode, from, to, locId } : null
+        ),
         distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
         switchMap((key) => {
           if (!key) return of(null);
@@ -285,6 +338,7 @@ export class SchedulePageComponent implements OnInit {
             periodEnd: key.to,
             defaultLocationId: key.locId,
           };
+          console.log('[SchedulePage] checkPublishedConflict request', dto);
           return this.rosterApi.checkPublishedConflict(dto).pipe(
             catchError((err) => {
               console.error('[SchedulePage] conflict check failed', err);
@@ -325,25 +379,7 @@ export class SchedulePageComponent implements OnInit {
           status: data.status,
         });
 
-        // Load locations
-        this.svc.loadLocations();
-
-        // Initialize location configs after locations load
-        setTimeout(() => {
-          this.initializeLocationConfigs();
-
-          // Set location configs from editor data if available
-          if (data.defaultLocationId) {
-            this.locationConfigs.update((configs) =>
-              configs.map((c) => ({
-                ...c,
-                isEnabled: c.id === data.defaultLocationId,
-              }))
-            );
-          }
-        }, 500);
-
-        // Load scopes and set active scope
+        // Load scopes first, then load locations with scopeCode
         this.scopeService.load('roster.edit').subscribe({
           next: (scopes) => {
             this.scopes.set(scopes);
@@ -352,10 +388,30 @@ export class SchedulePageComponent implements OnInit {
             );
             if (matchingScope) {
               this.activeScope.set(matchingScope);
+              // Keep numeric unitId unchanged; scopes now use CODE strings
               this.roster.update((r) => ({
                 ...r,
-                unitId: parseInt(matchingScope.orgId) || 0,
+                unitName: matchingScope.displayName,
               }));
+
+              // Load locations with scopeCode after scope is set
+              this.svc.loadLocations(matchingScope.orgId).subscribe((locations) => {
+                if (this.activeScope()?.orgId !== matchingScope.orgId) return;
+                this.svc.locations.set(locations);
+                this.initializeLocationConfigs();
+
+                // Set location configs from editor data if available
+                if (data.defaultLocationId) {
+                  this.locationConfigs.update((configs) =>
+                    configs.map((c) => ({
+                      ...c,
+                      isEnabled: c.id === data.defaultLocationId,
+                    }))
+                  );
+                }
+                const firstEnabled = this.locationConfigs().find((c) => c.isEnabled);
+                this.selectedLocationId.set(firstEnabled?.id ?? null);
+              });
             }
           },
           error: (err) =>
@@ -382,8 +438,10 @@ export class SchedulePageComponent implements OnInit {
               orgUnitCode: a.unitCode,
               orgUnitName: a.unitName,
               positionTitle: a.positionTitle,
+              positionLevel: a.positionLevel ?? undefined,
+              isLeader: a.isLeader,
               locationId: a.locationId || undefined,
-              dutyRoleName: a.dutyRoleName,
+              dutyRoleName: a.isLeader ? 'Chỉ huy trực' : 'Cán bộ trực',
             } as AssignmentRead)
         );
 
@@ -412,8 +470,9 @@ export class SchedulePageComponent implements OnInit {
         // Load staff tree (live) for both paths (snapshot still may show current org tree)
         if (data.scopeCode) {
           this.loadingTree.set(true);
+          const includeChildren = this.activeScope()?.includeChildren ?? false;
           this.orgService
-            .fetchAllWithStaff(data.scopeCode)
+            .fetchAllWithStaff(data.scopeCode, includeChildren)
             .pipe(
               catchError((err) => {
                 console.error(
@@ -443,12 +502,13 @@ export class SchedulePageComponent implements OnInit {
                     orgUnitCode: live?.orgUnitCode || a.orgUnitCode,
                     orgUnitName: live?.orgUnitName || a.orgUnitName,
                     positionTitle: live?.positionName || a.positionTitle,
-                    isLeader: live?.isLeader,
-                    dutyRoleName: live?.isLeader ? 'Chỉ huy' : 'Trực ban',
+                    isLeader: a.isLeader,
+                    dutyRoleName: a.isLeader ? 'Chỉ huy trực' : 'Cán bộ trực',
                     phone: live?.phone || undefined,
                   } as AssignmentRead;
                 });
                 this.svc.assignments.set(enriched);
+                this.svc.normalizeCommanders();
               }
             });
         }
@@ -456,6 +516,7 @@ export class SchedulePageComponent implements OnInit {
         // Mark initialization complete
         setTimeout(() => {
           this.isInitializing = false;
+          console.log('[RosterForm] loading OFF');
           this.pageLoading.set(false);
 
           // Auto-select location if not set (for edit mode)
@@ -527,8 +588,20 @@ export class SchedulePageComponent implements OnInit {
   visibleShiftIds = signal<number[]>([]);
   selectedLocationId = signal<number | null>(null);
 
+  selectedShiftName(): string {
+    return this.shifts.find((shift) => shift.id === this.selectedShiftId())?.name ?? '';
+  }
+
+  selectedLocationName(): string {
+    return this.locations.find((location) => location.id === this.selectedLocationId())?.name ?? '';
+  }
+
   // Location configuration: which locations are enabled for this roster
   locationConfigs = signal<LocationConfig[]>([]);
+  readonly enabledLocations = computed(() => {
+    const enabled = new Set(this.locationConfigs().filter((c) => c.isEnabled).map((c) => c.id));
+    return this.svc.locations().filter((location) => enabled.has(location.id));
+  });
 
   // Tính toán ngày từ-to thành array theo month view hiện tại
   days = computed(() => {
@@ -606,13 +679,12 @@ export class SchedulePageComponent implements OnInit {
 
     this.activeScope.set(scope);
 
-    // Sync unit name and unitId
+    // Sync unit name (do not coerce orgId CODE to numeric unitId)
     this.roster.update((r) =>
       scope
         ? {
             ...r,
             unitName: scope.displayName,
-            unitId: parseInt(scope.orgId) || 0,
           }
         : r
     );
@@ -623,16 +695,33 @@ export class SchedulePageComponent implements OnInit {
     // Ensure a default date range exists (once)
     this.ensureDefaultMonthRange();
 
+    // Load locations for new scope
+    if (scope?.orgId) {
+      this.locationConfigs.set([]);
+      this.selectedLocationId.set(null);
+      this.svc.locations.set([]);
+      this.svc.loadLocations(scope.orgId).subscribe((locations) => {
+        if (this.activeScope()?.orgId !== scope.orgId) return;
+        this.svc.locations.set(locations);
+        this.initializeLocationConfigs();
+        const firstLocation = this.locationConfigs().find((c) => c.isEnabled);
+        if (firstLocation) this.selectedLocationId.set(firstLocation.id);
+      });
+    }
+
     // Load shifts for this scope
     if (scope) {
+      this.svc.shifts = [];
+      this.selectedShiftId.set(0);
       this.loadShiftsForScope(scope.orgId);
     }
 
     // Load org tree with staff when scope changes
     if (scope) {
       this.loadingTree.set(true);
+      const includeChildren = scope.includeChildren ?? false;
       this.orgService
-        .fetchAllWithStaff(scope.orgId)
+        .fetchAllWithStaff(scope.orgId, includeChildren)
         .pipe(
           catchError((err) => {
             console.error(
@@ -658,6 +747,7 @@ export class SchedulePageComponent implements OnInit {
     this.shiftsLoading.set(true);
     this.dutyApi.getShiftsByScope(orgId, true).subscribe({
       next: (shifts) => {
+        if (this.activeScope()?.orgId !== orgId) return;
         // Map to Shift interface
         this.svc.shifts = shifts.map((s: any) => ({
           id: s.id,
@@ -667,28 +757,27 @@ export class SchedulePageComponent implements OnInit {
           end: s.endTime?.substring(0, 5) || '00:00',
         }));
 
+        // If no shifts available, guide the user
+        if (this.svc.shifts.length === 0) {
+          this.selectedShiftId.set(0);
+          this.toast.add({
+            severity: 'warn',
+            summary: 'Chưa có ca trực',
+            detail:
+              'Phạm vi này chưa có ca trực. Vào Quản trị → Danh mục → Ca trực để tạo mới.',
+          });
+        }
+
         // Auto-select first shift
         if (this.svc.shifts.length > 0) {
           this.selectedShiftId.set(this.svc.shifts[0].id);
-        }
-
-        // Initialize selected location from enabled locations only
-        if (!this.selectedLocationId()) {
-          const enabledConfigs = this.locationConfigs().filter(
-            (c) => c.isEnabled
-          );
-          if (enabledConfigs.length > 0) {
-            this.selectedLocationId.set(enabledConfigs[0].id);
-          } else if (this.locations.length > 0) {
-            // Fallback: select first location if no configs yet
-            this.selectedLocationId.set(this.locations[0].id);
-          }
         }
 
         this.shiftsLoading.set(false);
         console.debug('[SchedulePage] Loaded shifts for scope:', shifts);
       },
       error: (err) => {
+        if (this.activeScope()?.orgId !== orgId) return;
         console.error('[SchedulePage] Failed to load shifts:', err);
         this.svc.shifts = [];
         this.selectedShiftId.set(0);
@@ -700,6 +789,25 @@ export class SchedulePageComponent implements OnInit {
         });
       },
     });
+  }
+
+  reloadAssignmentCatalogs() {
+    const scopeCode = this.activeScope()?.orgId;
+    if (!scopeCode) return;
+    this.svc.loadLocations(scopeCode).subscribe((locations) => {
+      if (this.activeScope()?.orgId !== scopeCode) return;
+      this.svc.locations.set(locations);
+      const previous = this.locationConfigs();
+      this.locationConfigs.set(this.locations.map((location) => ({
+        id: location.id,
+        name: location.name,
+        isEnabled: previous.find((c) => c.id === location.id)?.isEnabled ?? true,
+      })));
+      if (!this.locationConfigs().some((c) => c.id === this.selectedLocationId() && c.isEnabled)) {
+        this.selectedLocationId.set(this.locationConfigs().find((c) => c.isEnabled)?.id ?? null);
+      }
+    });
+    this.loadShiftsForScope(scopeCode);
   }
 
   // ===== Auto roster name helpers =====
@@ -775,6 +883,7 @@ export class SchedulePageComponent implements OnInit {
   }
 
   getSaveTooltip(): string {
+    if (!this.canEdit()) return 'Không có quyền lưu lịch hoặc phân công, hoặc lịch đã công bố';
     if (!this.activeScope()) return 'Vui lòng chọn phạm vi trước';
     if (!this.roster().from || !this.roster().to)
       return 'Vui lòng chọn khoảng ngày';
@@ -785,7 +894,8 @@ export class SchedulePageComponent implements OnInit {
 
   getPublishTooltip(): string {
     if (!this.canEdit())
-      return 'Lịch trực đã xuất bản hoặc đã khóa, không thể chỉnh sửa';
+      return 'Không có quyền lưu lịch hoặc phân công, hoặc lịch đã công bố';
+    if (!this.canPublish()) return 'Không có quyền công bố lịch trực';
     if (!this.activeScope()) return 'Vui lòng chọn phạm vi trước';
     if (!this.roster().from || !this.roster().to)
       return 'Vui lòng chọn khoảng ngày';
@@ -797,6 +907,7 @@ export class SchedulePageComponent implements OnInit {
   }
 
   onSaveDraft() {
+    if (!this.canEdit() || !this.canSave()) return;
     if (this.isEditMode()) {
       this.updateExistingRoster();
     } else {
@@ -805,6 +916,7 @@ export class SchedulePageComponent implements OnInit {
   }
 
   onPublish() {
+    if (!this.canPublish() || !this.canSave() || this.hasPublishedConflict()) return;
     if (this.isEditMode()) {
       // For edit mode, save first then publish
       this.updateExistingRoster().then(() => {
@@ -1182,8 +1294,16 @@ export class SchedulePageComponent implements OnInit {
     rosterId: number,
     status: 'DRAFT' | 'PUBLISHED'
   ): void {
+    console.log('[RosterForm] loading ON: saving assignments');
+    this.pageLoading.set(true);
+    this.loadingText.set('Đang lưu lịch trực...');
+    this.subText.set('Vui lòng chờ trong giây lát');
+
     const scope = this.activeScope();
-    if (!scope) return;
+    if (!scope) {
+      this.pageLoading.set(false);
+      return;
+    }
 
     // Convert assignments to backend format
     const changes = this.assignments().map((a) => {
@@ -1223,6 +1343,8 @@ export class SchedulePageComponent implements OnInit {
         if (status === 'PUBLISHED') {
           this.publishRoster(rosterId);
         } else {
+          console.log('[RosterForm] loading OFF');
+          this.pageLoading.set(false);
           this.toast.add({
             severity: 'success',
             summary: 'Thành công',
@@ -1235,6 +1357,8 @@ export class SchedulePageComponent implements OnInit {
       },
       error: (err) => {
         console.error('[SchedulePage] Failed to save assignments:', err);
+        console.log('[RosterForm] loading OFF');
+        this.pageLoading.set(false);
         this.toast.add({
           severity: 'error',
           summary: 'Lỗi khi lưu phân công',
@@ -1251,8 +1375,13 @@ export class SchedulePageComponent implements OnInit {
    * @param rosterId Roster ID
    */
   private publishRoster(rosterId: number): void {
+    this.loadingText.set('Đang xuất bản lịch trực...');
+    this.subText.set('Vui lòng chờ trong giây lát');
+
     this.rosterApi.publish(rosterId).subscribe({
       next: () => {
+        console.log('[RosterForm] loading OFF');
+        this.pageLoading.set(false);
         this.toast.add({
           severity: 'success',
           summary: 'Thành công',
@@ -1266,6 +1395,8 @@ export class SchedulePageComponent implements OnInit {
       },
       error: (err) => {
         console.error('[SchedulePage] Failed to publish roster:', err);
+        console.log('[RosterForm] loading OFF');
+        this.pageLoading.set(false);
         this.toast.add({
           severity: 'error',
           summary: 'Lỗi khi xuất bản',
@@ -1328,8 +1459,6 @@ export class SchedulePageComponent implements OnInit {
     // Nếu không có thay đổi range hoặc không có assignments out-of-range
     this.roster.update((r) => ({ ...r, ...meta }));
   }
-
-  // Không còn onUnitChange, dùng onScopeChange(scopeCode: string)
 
   private findNodeByCode(
     nodes: OrgUnitNodeWithStaff[] | null,
@@ -1416,10 +1545,18 @@ export class SchedulePageComponent implements OnInit {
       });
       return;
     }
-    const u = this.selectedUser();
+    const user = this.selectedUser();
     const shiftId = this.selectedShiftId();
-    if (!u || !shiftId) return;
-    this.svc.addAssignment(dateKey, shiftId, u, this.selectedLocationId());
+    const locationId = this.selectedLocationId();
+    if (!user || !shiftId || !locationId || !this.enabledLocations().some((l) => l.id === locationId)) {
+      this.toast.add({ severity: 'warn', summary: 'Thiếu thông tin phân công', detail: 'Chọn cán bộ bên trái, ca trực và địa điểm trực trước khi bấm +.' });
+      return;
+    }
+    const before = this.assignments().length;
+    this.svc.addAssignment(dateKey, shiftId, user, locationId);
+    if (this.assignments().length === before) {
+      this.toast.add({ severity: 'warn', summary: 'Chưa thêm phân công', detail: 'Cán bộ đã có trong ca này hoặc thiếu tài khoản hợp lệ.' });
+    }
   }
 
   onRemoveAssignment(a: AssignmentRead) {
@@ -1432,6 +1569,10 @@ export class SchedulePageComponent implements OnInit {
       return;
     }
     this.svc.removeAssignment(a);
+  }
+
+  onCommanderChange(a: AssignmentRead) {
+    if (this.canEdit()) this.svc.setCommander(a);
   }
 
   // When a new location is created from shift-tabs
@@ -1565,7 +1706,15 @@ export class SchedulePageComponent implements OnInit {
       return;
     }
     const shiftId = this.selectedShiftId();
-    if (!e.user || !shiftId) return;
+    if (!e.user || !shiftId || !this.selectedLocationId()) {
+      this.toast.add({
+        severity: 'warn',
+        summary: 'Thiếu ca trực',
+        detail:
+          'Vui lòng chọn ca trực trước khi thêm cán bộ, hoặc tạo ca mới trong mục Danh mục.',
+      });
+      return;
+    }
     // Không xóa staff khỏi tree, chỉ thêm assignment mới
     this.svc.addAssignment(e.date, shiftId, e.user, this.selectedLocationId());
   }

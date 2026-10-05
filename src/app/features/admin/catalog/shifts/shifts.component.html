@@ -1,5 +1,5 @@
 <p-toast></p-toast>
-<div class="flex items-center justify-between mb-3">
+<div class="catalog-toolbar">
   <!-- LEFT SIDE: title + scope-picker -->
   <div class="flex items-center gap-3">
     <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
@@ -9,13 +9,13 @@
     <app-scope-picker
       class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
       [scopes]="scopes"
-      [selected]="activeScope"
+      [selected]="activeScope()"
       (selectedChange)="onScopeSelected($event)"
     ></app-scope-picker>
   </div>
   <div class="flex items-center gap-3">
     <button
-      *hasPermission="'catalog.edit'"
+      *ngIf="canCreate()"
       pButton
       label="Thêm"
       icon="pi pi-plus"
@@ -45,7 +45,7 @@
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <button
-          *hasPermission="'catalog.delete'"
+          *ngIf="canBulkDelete()"
           pButton
           label="Xóa"
           icon="pi pi-trash"
@@ -55,7 +55,7 @@
           (click)="removeMany()"
         ></button>
         <button
-          *hasPermission="'catalog.edit'"
+          *ngIf="canBulkEdit()"
           pButton
           label="Đổi trạng thái"
           icon="pi pi-refresh"
@@ -180,7 +180,7 @@
       <td class="text-center">
         <div class="flex items-center gap-1 justify-center">
           <button
-            *hasPermission="'catalog.edit'"
+            *ngIf="canBulkEdit()"
             pButton
             icon="pi pi-pencil"
             class="p-button-text p-button-sm text-blue-600"
@@ -188,7 +188,7 @@
             pTooltip="Sửa"
           ></button>
           <button
-            *hasPermission="'catalog.delete'"
+            *ngIf="canBulkDelete()"
             pButton
             icon="pi pi-trash"
             class="p-button-text p-button-sm text-red-600"
@@ -196,6 +196,14 @@
             pTooltip="Xóa"
           ></button>
         </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td [attr.colspan]="8" class="catalog-empty">
+        <i class="pi pi-inbox" aria-hidden="true"></i>
+        Chưa có ca trực nào trong phạm vi này
       </td>
     </tr>
   </ng-template>

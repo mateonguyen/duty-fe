@@ -32,6 +32,11 @@ import { ScopeRef } from '../../../core/services/scope.service';
             <div class="flex items-center gap-2">
               <i class="pi pi-building text-sm"></i>
               <span>{{ scope.displayName }}</span>
+              <span
+                *ngIf="showIncludeChildrenHint && scope.includeChildren"
+                class="text-xs text-slate-500 italic"
+                >(bao gồm đơn vị con)</span
+              >
             </div>
           </ng-template>
         </p-dropdown>
@@ -61,6 +66,7 @@ export class ScopePickerComponent implements OnInit {
   @Input() scopes: ScopeRef[] = [];
   @Input() selected: ScopeRef | null = null;
   @Input() placeholder: string = 'Chọn phạm vi...';
+  @Input() showIncludeChildrenHint: boolean = false; // NEW: control display of "(bao gồm đơn vị con)"
 
   // Emit when user changes selection
   @Input() onScopeSelected?: (scope: ScopeRef | null) => void; // backward compat handler

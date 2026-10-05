@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -17,7 +18,6 @@ import {
 } from '../../../../core/services/scope.service';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
-import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { ScopePickerComponent } from '../../../../shared/components/scope-picker/scope-picker.component';
 import { firstValueFrom } from 'rxjs';
 
@@ -36,7 +36,6 @@ import { firstValueFrom } from 'rxjs';
     TooltipModule,
     FormsModule,
     CommonModule,
-    HasPermissionDirective,
     ScopePickerComponent,
     ToastModule,
   ],
@@ -80,7 +79,66 @@ export class ShiftsComponent implements OnInit {
 
   // scope state
   scopes: ScopeRef[] = [];
-  activeScope: ScopeRef | null = null;
+  activeScope = signal<ScopeRef | null>(null);
+
+  // Permission loading gate
+  permissionsLoaded = signal<boolean>(false);
+
+  // Bulk action permissions - show buttons if user has permission in ANY loaded scope
+  canBulkDelete = computed(() => {
+    if (!this.permissionsLoaded()) return false;
+    const currentScopes = this.scopes;
+    const activeScope = this.activeScope();
+    if (currentScopes.length > 0 && !activeScope) {
+      return currentScopes.some((s) =>
+        this.scopeService.hasPermissionInScope('catalog.delete', s.orgId)
+      );
+    }
+    if (activeScope) {
+      return this.scopeService.hasPermissionInScope(
+        'catalog.delete',
+        activeScope.orgId
+      );
+    }
+    return false;
+  });
+
+  canBulkEdit = computed(() => {
+    if (!this.permissionsLoaded()) return false;
+    const currentScopes = this.scopes;
+    const activeScope = this.activeScope();
+    if (currentScopes.length > 0 && !activeScope) {
+      return currentScopes.some((s) =>
+        this.scopeService.hasPermissionInScope('catalog.edit', s.orgId)
+      );
+    }
+    if (activeScope) {
+      return this.scopeService.hasPermissionInScope(
+        'catalog.edit',
+        activeScope.orgId
+      );
+    }
+    return false;
+  });
+
+  canCreate = computed(() => {
+    if (!this.permissionsLoaded()) return false;
+    const currentScopes = this.scopes;
+    const activeScope = this.activeScope();
+    // Creating and updating are separate permissions.
+    if (currentScopes.length > 0 && !activeScope) {
+      return currentScopes.some((s) =>
+        this.scopeService.hasPermissionInScope('catalog.create', s.orgId)
+      );
+    }
+    if (activeScope) {
+      return this.scopeService.hasPermissionInScope(
+        'catalog.create',
+        activeScope.orgId
+      );
+    }
+    return false;
+  });
 
   constructor(
     private api: DutyApiService,
@@ -124,13 +182,21 @@ export class ShiftsComponent implements OnInit {
   }
 
   async ngOnInit() {
-    // Load scopes relevant for viewing shifts (reuse roster.view resolver)
-    this.scopeService.load('roster.view').subscribe({
+    // Load scopes relevant for viewing shifts (use catalog.view)
+    this.scopeService.load('catalog.view').subscribe({
       next: async (items) => {
         this.scopes = items;
-        if (!this.activeScope && items.length > 0) {
-          this.activeScope = items[0];
+        if (!this.activeScope() && items.length > 0) {
+          this.activeScope.set(items[0]);
         }
+        // Wait for ALL permission scopes to load before enabling permission checks
+        forkJoin([
+          this.scopeService.load('catalog.create'),
+          this.scopeService.load('catalog.edit'),
+          this.scopeService.load('catalog.delete'),
+        ]).subscribe(() => {
+          this.permissionsLoaded.set(true);
+        });
         await this.load();
       },
       error: (err) => console.error('[Shifts] Failed to load scopes', err),
@@ -140,9 +206,10 @@ export class ShiftsComponent implements OnInit {
   async load() {
     this.loading = true;
     try {
-      if (this.activeScope) {
+      const scope = this.activeScope();
+      if (scope) {
         // orgId is a string scopeCode (e.g., "G01.705.000.002")
-        const scopeCode = this.activeScope.orgId;
+        const scopeCode = scope.orgId;
         this.rows = await firstValueFrom(
           this.api.getShiftsByScope(scopeCode, true)
         );
@@ -164,7 +231,7 @@ export class ShiftsComponent implements OnInit {
   }
 
   onScopeSelected(scope: ScopeRef | null) {
-    this.activeScope = scope;
+    this.activeScope.set(scope);
     this.load();
   }
 
@@ -183,7 +250,7 @@ export class ShiftsComponent implements OnInit {
       displayOrder: 100,
       active: true,
       // Set scopeCode from active scope when creating new shift
-      scopeCode: this.activeScope?.orgId ?? null,
+      scopeCode: this.activeScope()?.orgId ?? null,
     };
     this.initTimePickers();
     this.clearValidationErrors();

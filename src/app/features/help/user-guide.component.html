@@ -1,0 +1,71 @@
+<div class="help-layout">
+  <aside class="help-sidebar" #sidebar>
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        placeholder="Tìm trong tài liệu..."
+        [value]="searchTerm()"
+        (input)="searchTerm.set($any($event.target).value)"
+      />
+    </div>
+    <ul>
+      <ng-container *ngFor="let group of groupedSections">
+        <li class="toc-group-title">{{ group[0] }}</li>
+        <li
+          *ngFor="let s of group[1]"
+          [class.active]="activeId() === s.id"
+          (click)="scrollTo(s.id)"
+        >
+          <i class="pi" [ngClass]="s.icon"></i>
+          {{ s.title }}
+        </li>
+      </ng-container>
+    </ul>
+  </aside>
+  <main class="help-content" #content (scroll)="onContentScroll()">
+    <div class="hero-section">
+      <h1>Tài liệu hướng dẫn Duty Roster</h1>
+      <p>
+        Hệ thống quản lý lịch trực chuyên nghiệp, giúp bạn tổ chức, giám sát và
+        tối ưu phân công ca trực cho đơn vị.
+      </p>
+      <div class="hero-actions">
+        <button class="hero-btn"><i class="pi pi-download"></i> Tải PDF</button>
+        <button class="hero-btn secondary">
+          <i class="pi pi-envelope"></i> Liên hệ hỗ trợ
+        </button>
+      </div>
+    </div>
+    <div class="guide-content-card">
+      <section
+        *ngFor="let s of filteredSections"
+        [id]="s.id"
+        class="help-section"
+      >
+        <h2>
+          <span class="pi" [ngClass]="s.icon"></span> {{ s.title }}
+          <a class="sec-anchor" (click)="copyLink(s.id)">#</a>
+          <span class="copied" *ngIf="copying() === s.id">Đã copy</span>
+        </h2>
+        <p>{{ s.content }}</p>
+        <div class="block-objective" *ngIf="s.objective">
+          <strong>Mục tiêu:</strong>
+          <p>{{ s.objective }}</p>
+        </div>
+        <div class="block-steps" *ngIf="s.steps && s.steps.length > 0">
+          <strong>Các bước thực hiện:</strong>
+          <ol>
+            <li *ngFor="let step of s.steps">{{ step }}</li>
+          </ol>
+        </div>
+        <div class="callout warn" *ngIf="s.notes && s.notes.length > 0">
+          <strong>Lưu ý:</strong>
+          <ul>
+            <li *ngFor="let note of s.notes">{{ note }}</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>

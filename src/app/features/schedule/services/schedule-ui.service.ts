@@ -29,14 +29,20 @@ export class ScheduleUiService {
   staffAll = signal<SimpleUser[]>([]);
 
   constructor() {
-    // Load locations from backend on init
-    this.loadLocations();
+    // Locations will be loaded when scope is selected
   }
 
-  /** Load DutyLocations from backend API */
-  loadLocations(): void {
-    this.dutyApi
-      .getDutyLocations()
+  /** Load DutyLocations from backend API with scopeCode */
+  loadLocations(scopeCode?: string | null): Observable<DutyLocation[]> {
+    if (!scopeCode) {
+      console.warn(
+        '[ScheduleUiService] loadLocations called without scopeCode - this will cause 400 error. Skipping.'
+      );
+      return of([]);
+    }
+
+    return this.dutyApi
+      .getDutyLocations(scopeCode, true)
       .pipe(
         map((dtos) =>
           dtos.map(
@@ -48,18 +54,17 @@ export class ScheduleUiService {
           )
         ),
         catchError((err) => {
-          console.error('[ScheduleDemoService] Failed to load locations:', err);
+          console.error('[ScheduleUiService] Failed to load locations:', err);
+          if (err.status === 400) {
+            console.error(
+              '[ScheduleUiService] 400 error - likely missing scopeCode. Current scopeCode:',
+              scopeCode
+            );
+          }
           // Return empty array on error
           return of([]);
         })
-      )
-      .subscribe((locations) => {
-        this.locations.set(locations);
-        console.log(
-          '[ScheduleDemoService] Loaded locations from API:',
-          locations
-        );
-      });
+      );
   }
 
   /** Reset toàn bộ state service về mặc định (dùng khi đổi user) */
@@ -84,31 +89,38 @@ export class ScheduleUiService {
   /**
    * Load staff theo loại lịch và đơn vị
    */
-  loadStaffForRoster(orgUnitCode?: string) {
-    this.staffDataService.getStaffForRoster(orgUnitCode).subscribe({
-      next: (staff) => {
-        this.staffAll.set(staff);
-      },
-      error: (err) => {
-        console.error('Failed to load staff from EOffice:', err);
-        this.staffAll.set([]);
-      },
-    });
-  }
-
-  /** Finite Observable wrapper for staff loading (preferred in reactive pipelines). */
-  loadStaffForRoster$(orgUnitCode?: string): Observable<void> {
-    return this.staffDataService.getStaffForRoster(orgUnitCode).pipe(
-      tap({
-        next: (staff) => this.staffAll.set(staff),
+  loadStaffForRoster(orgUnitCode?: string, includeChildren: boolean = false) {
+    this.staffDataService
+      .getStaffForRoster(orgUnitCode, includeChildren)
+      .subscribe({
+        next: (staff) => {
+          this.staffAll.set(staff);
+        },
         error: (err) => {
           console.error('Failed to load staff from EOffice:', err);
           this.staffAll.set([]);
         },
-      }),
-      catchError(() => of([])),
-      map(() => void 0)
-    );
+      });
+  }
+
+  /** Finite Observable wrapper for staff loading (preferred in reactive pipelines). */
+  loadStaffForRoster$(
+    orgUnitCode?: string,
+    includeChildren: boolean = false
+  ): Observable<void> {
+    return this.staffDataService
+      .getStaffForRoster(orgUnitCode, includeChildren)
+      .pipe(
+        tap({
+          next: (staff) => this.staffAll.set(staff),
+          error: (err) => {
+            console.error('Failed to load staff from EOffice:', err);
+            this.staffAll.set([]);
+          },
+        }),
+        catchError(() => of([])),
+        map(() => void 0)
+      );
   }
 
   // ---- state kỳ lịch + phân công ----
@@ -227,25 +239,61 @@ export class ScheduleUiService {
       orgUnitName: u.orgUnitName,
       positionTitle: u.positionName, // Snapshot staff position at assignment time
       positionLevel: u.positionLevel, // Snapshot C_LEVEL for leader sorting
-      isLeader: !!u.isLeader,
-      dutyRoleName: u.isLeader ? 'Chỉ huy' : 'Trực ban',
+      isLeader: false,
+      dutyRoleName: 'Cán bộ trực',
       phone: u.phone,
       locationId: locationId ?? this.roster().locationId,
     };
-    this.assignments.update((x) => [...x, a]);
+    this.assignments.update((list) => {
+      const cell = [...list, a].filter(x => x.date === d && x.shiftId === shiftId && x.locationId === a.locationId);
+      const commander = [...cell].sort((x, y) => (x.positionLevel ?? 999) - (y.positionLevel ?? 999) || x.userName.localeCompare(y.userName))[0];
+      return [...list, a].map(x => x.date === d && x.shiftId === shiftId && x.locationId === a.locationId
+        ? { ...x, isLeader: x.username === commander.username, dutyRoleName: x.username === commander.username ? 'Chỉ huy trực' : 'Cán bộ trực' }
+        : x);
+    });
+  }
+
+  setCommander(selected: AssignmentRead) {
+    this.assignments.update(list => list.map(x => x.date === selected.date && x.shiftId === selected.shiftId && x.locationId === selected.locationId
+      ? { ...x, isLeader: x.username === selected.username, dutyRoleName: x.username === selected.username ? 'Chỉ huy trực' : 'Cán bộ trực' }
+      : x));
+  }
+
+  normalizeCommanders() {
+    this.assignments.update(list => {
+      const cells = new Map<string, AssignmentRead[]>();
+      for (const a of list) {
+        const key = `${a.date}|${a.shiftId}|${a.locationId ?? ''}`;
+        cells.set(key, [...(cells.get(key) || []), a]);
+      }
+      const chosen = new Map<string, string>();
+      for (const [key, cell] of cells) {
+        const marked = cell.filter(a => a.isLeader);
+        const commander = marked.length === 1 ? marked[0] : [...cell].sort((a, b) => (a.positionLevel ?? 999) - (b.positionLevel ?? 999) || a.userName.localeCompare(b.userName))[0];
+        if (commander?.username) chosen.set(key, commander.username);
+      }
+      return list.map(a => {
+        const isLeader = chosen.get(`${a.date}|${a.shiftId}|${a.locationId ?? ''}`) === a.username;
+        return { ...a, isLeader, dutyRoleName: isLeader ? 'Chỉ huy trực' : 'Cán bộ trực' };
+      });
+    });
   }
 
   removeAssignment(a: AssignmentRead) {
-    this.assignments.update((list) =>
-      list.filter(
+    this.assignments.update((list) => {
+      const remaining = list.filter(
         (i) =>
           !(
             i.date === a.date &&
             i.shiftId === a.shiftId &&
             i.userId === a.userId
           )
-      )
-    );
+      );
+      if (!a.isLeader) return remaining;
+      const cell = remaining.filter(x => x.date === a.date && x.shiftId === a.shiftId && x.locationId === a.locationId);
+      const next = [...cell].sort((x, y) => (x.positionLevel ?? 999) - (y.positionLevel ?? 999) || x.userName.localeCompare(y.userName))[0];
+      return next ? remaining.map(x => x === next ? { ...x, isLeader: true, dutyRoleName: 'Chỉ huy trực' } : x) : remaining;
+    });
   }
 
   // ====== API bổ sung cho component ======

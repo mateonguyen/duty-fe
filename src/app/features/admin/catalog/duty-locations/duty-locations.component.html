@@ -1,7 +1,7 @@
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
-<div class="flex items-center justify-between mb-3">
+<div class="catalog-toolbar">
   <!-- LEFT SIDE: title + scope-picker -->
   <div class="flex items-center gap-3">
     <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
@@ -10,15 +10,15 @@
     </h3>
     <app-scope-picker
       class="w-[300px] border border-slate-300 rounded-lg shadow-sm hover:border-primary-400 transition-all font-semibold uppercase"
-      [scopes]="scopes"
-      [selected]="activeScope"
+      [scopes]="scopes()"
+      [selected]="activeScope()"
       (selectedChange)="onScopeSelected($event)"
       [placeholder]="'Phạm vi áp dụng'"
     />
   </div>
   <div class="flex items-center gap-2">
     <button
-      *hasPermission="'catalog.edit'"
+      *ngIf="canCreate()"
       pButton
       label="Thêm"
       icon="pi pi-plus"
@@ -46,7 +46,7 @@
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <button
-          *hasPermission="'catalog.delete'"
+          *ngIf="canBulkDelete()"
           pButton
           label="Xóa"
           icon="pi pi-trash"
@@ -56,7 +56,7 @@
           (click)="removeMany()"
         ></button>
         <button
-          *hasPermission="'catalog.edit'"
+          *ngIf="canBulkEdit()"
           pButton
           label="Đổi trạng thái"
           icon="pi pi-refresh"
@@ -140,24 +140,25 @@
       <td class="text-center">
         <div class="flex items-center gap-1 justify-center">
           <button
+            *ngIf="canEdit()"
             pButton
             icon="pi pi-angle-up"
             class="p-button-text p-button-sm"
             (click)="moveDisplayOrder(r, -1)"
             [disabled]="isFirstRow(r)"
             pTooltip="Di chuyển lên"
-            *hasPermission="'catalog.edit'"
           ></button>
           <button
+            *ngIf="canEdit()"
             pButton
             icon="pi pi-angle-down"
             class="p-button-text p-button-sm"
             (click)="moveDisplayOrder(r, 1)"
             [disabled]="isLastRow(r)"
             pTooltip="Di chuyển xuống"
-            *hasPermission="'catalog.edit'"
           ></button>
           <input
+            *ngIf="canEdit()"
             pInputText
             type="number"
             min="0"
@@ -165,16 +166,20 @@
             [ngModel]="r.displayOrder"
             (ngModelChange)="r.displayOrder = $event"
             (blur)="onDisplayOrderBlur(r)"
-            *hasPermission="'catalog.edit'"
           />
-          <span *ngIf="!(r.displayOrder >= 0)" class="text-xs text-red-500"
+          <span *ngIf="!canEdit()" class="text-slate-600">{{
+            r.displayOrder
+          }}</span>
+          <span
+            *ngIf="canEdit() && !(r.displayOrder >= 0)"
+            class="text-xs text-red-500"
             >!</span
           >
         </div>
       </td>
       <td class="text-center">
         <button
-          *hasPermission="'catalog.edit'"
+          *ngIf="canEdit()"
           pButton
           icon="pi pi-pencil"
           class="p-button-text p-button-sm text-blue-600"
@@ -182,7 +187,7 @@
           pTooltip="Sửa"
         ></button>
         <button
-          *hasPermission="'catalog.delete'"
+          *ngIf="canDelete()"
           pButton
           class="p-button-text p-button-sm"
           (click)="remove(r)"
@@ -193,9 +198,17 @@
       </td>
     </tr>
   </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td [attr.colspan]="9" class="catalog-empty">
+        <i class="pi pi-inbox" aria-hidden="true"></i>
+        Chưa có địa điểm trực nào trong phạm vi này
+      </td>
+    </tr>
+  </ng-template>
 </p-table>
 
-<div class="mt-2 text-xs text-slate-500 italic">
+<div class="catalog-note">
   Số thứ tự nhỏ hơn sẽ hiển thị trước (1 → 2 → 3…)
 </div>
 
@@ -217,7 +230,7 @@
         >Đơn vị / Phạm vi <span class="text-red-500">*</span></label
       >
       <app-scope-picker
-        [scopes]="scopes"
+        [scopes]="scopes()"
         [selected]="dialogSelectedScope"
         (selectedChange)="onDialogScopeChanged($event)"
         class="w-full"

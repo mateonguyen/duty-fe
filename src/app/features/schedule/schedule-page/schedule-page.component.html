@@ -1,19 +1,20 @@
-﻿<!-- src/app/features/schedule/schedule-page/schedule-page.component.html -->
-<app-loading-spinner
+﻿<app-loading-spinner
   [isLoading]="pageLoading()"
-  loadingText="Đang tải dữ liệu lịch trực..."
-  subText="Vui lòng đợi trong giây lát"
+  [loadingText]="loadingText()"
+  [subText]="subText()"
+  [imageUrl]="'assets/loading.svg'"
+  [minDurationMs]="600"
 ></app-loading-spinner>
 
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
-<div class="h-[calc(100vh-48px)] flex flex-col">
+<div class="schedule-page flex flex-col">
   <!-- Page title -->
-  <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+  <div class="schedule-page-header px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
     <!-- LEFT SIDE: title + scope-picker -->
-    <div class="flex items-center gap-3">
-      <h1 class="text-xl font-semibold uppercase">Bảng phân công trực</h1>
+    <div class="schedule-heading flex items-center gap-3">
+      <h1 class="ui-page-title"><i class="pi pi-calendar" aria-hidden="true"></i> {{ isEditMode() ? 'Sửa kỳ lịch trực' : 'Tạo kỳ lịch trực' }}</h1>
       <span
         *ngIf="isEditMode()"
         class="px-3 py-1 text-xs font-semibold rounded-full"
@@ -30,15 +31,16 @@
         [scopes]="scopes()"
         [selected]="activeScope()"
         (selectedChange)="onScopeChange($event)"
+        [showIncludeChildrenHint]="true"
       ></app-scope-picker>
     </div>
-    <div class="flex gap-2">
+    <div class="schedule-header-actions flex gap-2">
       <div
         *ngIf="!canEdit()"
         class="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800"
       >
         <i class="pi pi-exclamation-triangle"></i>
-        <span>Lịch trực đã xuất bản không thể chỉnh sửa</span>
+        <span>Lịch trực không thể chỉnh sửa hoặc tài khoản thiếu quyền lưu lịch, phân công</span>
       </div>
       <!-- Published conflict banner -->
       <div
@@ -85,17 +87,15 @@
         [disabled]="!canSave() || !canEdit()"
         [pTooltip]="getSaveTooltip()"
         tooltipPosition="bottom"
-        appPermissionTooltip="roster.create"
       ></button>
       <button
         pButton
         label="Xuất bản"
         icon="pi pi-check-circle"
         (click)="onPublish()"
-        [disabled]="!canSave() || !canEdit() || hasPublishedConflict()"
+        [disabled]="!canSave() || !canPublish() || hasPublishedConflict()"
         [pTooltip]="getPublishTooltip()"
         tooltipPosition="bottom"
-        appPermissionTooltip="roster.create"
       ></button>
     </div>
   </div>
@@ -120,7 +120,7 @@
             else noStaff
           "
         >
-          <div class="flex-1 min-h-0 overflow-y-auto">
+          <div class="staff-tree-host">
             <app-staff-tree
               [orgTree]="orgTreeWithStaff()"
               [selectedUser]="selectedUser()"
@@ -147,6 +147,13 @@
         (locationConfigChange)="onLocationConfigChange($event)"
       />
 
+      <div class="schedule-setup-notice" *ngIf="!shiftsLoading() && (!shifts.length || !enabledLocations().length)">
+        <i class="pi pi-info-circle" aria-hidden="true"></i>
+        <span>Cần có {{ !shifts.length ? 'ca trực' : '' }}{{ !shifts.length && !enabledLocations().length ? ' và ' : '' }}{{ !enabledLocations().length ? 'địa điểm trực đang bật' : '' }} để phân công. Kiểm tra Quản trị → Danh mục hoặc quyền xem danh mục.</span>
+        <a *ngIf="!shifts.length" routerLink="/admin/catalog/shifts" target="_blank">Ca trực</a>
+        <a *ngIf="!locations.length" routerLink="/admin/catalog/duty-locations" target="_blank">Địa điểm</a>
+        <button type="button" (click)="reloadAssignmentCatalogs()">Tải lại</button>
+      </div>
       <!-- Shift Tabs (updated - removed location dropdown) -->
       <div class="relative">
         <app-shift-tabs
@@ -178,8 +185,12 @@
           "
           [assignments]="assignments()"
           [selectedUser]="selectedUser()"
+          [selectedShiftName]="selectedShiftName()"
+          [selectedLocationName]="selectedLocationName()"
+          [readOnly]="!canEdit()"
           (quickAdd)="onQuickAdd($event)"
           (remove)="onRemoveAssignment($event)"
+          (commanderChange)="onCommanderChange($event)"
           (staffDropped)="onStaffDropped($event)"
         />
       </div>

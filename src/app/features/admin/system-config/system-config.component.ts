@@ -35,6 +35,7 @@ export class SystemConfigComponent implements OnInit {
   private _orgOptions: OrgSearchResult[] = [];
   orgLoadingFlag = false;
   private orgOptionsUpdateTrigger = signal(0);
+  searchText = ''; // Separate search state
 
   get orgOptions(): OrgSearchResult[] {
     // Trigger để đảm bảo change detection
@@ -45,6 +46,25 @@ export class SystemConfigComponent implements OnInit {
   set orgOptions(value: OrgSearchResult[]) {
     this._orgOptions = value;
     this.orgOptionsUpdateTrigger.set(this.orgOptionsUpdateTrigger() + 1);
+  }
+
+  // Filtered options based on search text
+  get filteredOrgOptions(): OrgSearchResult[] {
+    if (!this.searchText || this.searchText.trim() === '') {
+      return this._orgOptions;
+    }
+    const searchLower = this.searchText.toLowerCase().trim();
+    return this._orgOptions.filter((org) => {
+      if (!org) return false;
+      const code = org.code?.toLowerCase() || '';
+      const name = org.name?.toLowerCase() || '';
+      const displayName = org.displayName?.toLowerCase() || '';
+      return (
+        code.includes(searchLower) ||
+        name.includes(searchLower) ||
+        displayName.includes(searchLower)
+      );
+    });
   }
 
   constructor(
@@ -65,9 +85,7 @@ export class SystemConfigComponent implements OnInit {
   }
 
   private refreshConfigs() {
-    console.log('refreshConfigs called');
     this.svc.fetchAll().subscribe((cfgs) => {
-      console.log('Configs loaded:', cfgs);
       // Sắp xếp lại thứ tự các config theo yêu cầu
       const order = [
         'SystemName',
@@ -93,7 +111,8 @@ export class SystemConfigComponent implements OnInit {
 
   save() {
     this.saving = true;
-    const configs = this.configs();
+    const configs = this.configs().filter(cfg => cfg.key !== 'RootOrgCode');
+    if (configs.length === 0) { this.saving = false; return; }
     let count = 0;
     configs.forEach((cfg) => {
       this.svc.update(cfg).subscribe({
@@ -143,8 +162,10 @@ export class SystemConfigComponent implements OnInit {
   }
 
   onOrgFilter(event: any) {
-    const query = event.filter || '';
-    this.loadOrgOptions(query);
+    // Only update search text for local filtering
+    this.searchText = event.filter || '';
+    // Optionally load more data from server if needed
+    // For now, use local filtering for better UX
   }
 
   onOrgScroll(event: any) {
@@ -153,62 +174,43 @@ export class SystemConfigComponent implements OnInit {
   }
 
   private loadOrgOptions(query = '', page = 1) {
-    console.log('loadOrgOptions called with query:', query, 'page:', page);
     this.orgLoadingFlag = true;
-    // Tăng limit để đảm bảo có đủ options
-    this.orgSvc.searchOrganizations(query, page, 200).subscribe({
+    // Load more items to ensure we have the selected value
+    this.orgSvc.searchOrganizations(query, page, 500).subscribe({
       next: (response) => {
-        console.log('API response received:', response);
-        console.log('Number of options:', response.items?.length || 0);
-        // Delay một chút để đảm bảo component đã render xong
-        setTimeout(() => {
-          this._orgOptions = response.items;
+        // Store current selection before updating options
+        const rootOrgConfig = this.configs().find(
+          (c) => c.key === 'RootOrgCode'
+        );
+        const currentValue = rootOrgConfig?.value;
 
-          // Debug: log giá trị hiện tại
-          const rootOrgConfig = this.configs().find(
-            (c) => c.key === 'RootOrgCode'
-          );
-          console.log('RootOrgCode config:', rootOrgConfig);
-          console.log('RootOrgCode value:', rootOrgConfig?.value);
-          console.log(
-            'Available options codes:',
-            this._orgOptions.map((o) => o.code)
-          );
-          console.log(
-            'Available options:',
-            this._orgOptions
-              .slice(0, 5)
-              .map((o) => ({ code: o.code, name: o.name }))
-          );
+        // Update options
+        this._orgOptions = response.items;
 
-          // Sắp xếp lại để giá trị RootOrgCode hiện tại lên đầu nếu có
-          if (rootOrgConfig?.value) {
-            const currentOrgIndex = this._orgOptions.findIndex(
-              (opt) => opt.code === rootOrgConfig.value
-            );
-            console.log('Current org index:', currentOrgIndex);
-            if (currentOrgIndex > 0) {
-              // Di chuyển item hiện tại lên đầu - tạo array mới để trigger change detection
-              const currentOrg = this._orgOptions.splice(currentOrgIndex, 1)[0];
-              this._orgOptions = [currentOrg, ...this._orgOptions];
-            }
+        // Ensure selected value is in the list (matching by code field)
+        if (
+          currentValue &&
+          !this._orgOptions.find((opt) => opt.code === currentValue)
+        ) {
+          // If current value is not in the list, try to fetch it
+          console.warn(
+            `Selected value ${currentValue} not found in options list`
+          );
+        }
+
+        // Sort: move current selection to top for better UX
+        if (currentValue) {
+          const currentIndex = this._orgOptions.findIndex(
+            (opt) => opt.code === currentValue
+          );
+          if (currentIndex > 0) {
+            const [currentOrg] = this._orgOptions.splice(currentIndex, 1);
+            this._orgOptions = [currentOrg, ...this._orgOptions];
           }
+        }
 
-          // Force update binding để dropdown nhận giá trị
-          const currentConfig = this.configs().find(
-            (c) => c.key === 'RootOrgCode'
-          );
-          if (currentConfig) {
-            // Set lại value để trigger binding
-            const tempValue = currentConfig.value;
-            currentConfig.value = null;
-            this.cdr.detectChanges();
-            currentConfig.value = tempValue;
-            this.cdr.detectChanges();
-          }
-
-          this.orgLoadingFlag = false;
-        }, 100);
+        this.orgLoadingFlag = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('API error in loadOrgOptions:', err);
@@ -224,6 +226,7 @@ export class SystemConfigComponent implements OnInit {
 
   getSelectedOrg(value: string | null) {
     if (!value) return null;
+    // RootOrgCode config stores org CODE (for scope matching), so match by code field
     const allOrgs = this.flattenOrganizations(this.organizations());
     return allOrgs.find((org) => org.code === value) || null;
   }
@@ -232,7 +235,12 @@ export class SystemConfigComponent implements OnInit {
     const result: any[] = [];
     const flatten = (nodes: any[]) => {
       nodes.forEach((node) => {
-        result.push({ code: node.code, name: `${node.code} - ${node.name}` });
+        // Store both code and id; RootOrgConfig uses code for scope matching
+        result.push({
+          code: node.code, // Used for RootOrgCode config (scope matching)
+          id: node.id, // Reference only
+          name: `${node.code} - ${node.name}`,
+        });
         if (node.children && node.children.length > 0) {
           flatten(node.children);
         }
@@ -240,5 +248,15 @@ export class SystemConfigComponent implements OnInit {
     };
     flatten(orgs);
     return result;
+  }
+
+  // TrackBy function for dropdown to prevent losing selection
+  trackByOrgCode(index: number, item: OrgSearchResult): string {
+    return item.code || item.id;
+  }
+
+  // Reset search text when dropdown is hidden
+  onDropdownHide() {
+    this.searchText = '';
   }
 }

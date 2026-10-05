@@ -2,6 +2,8 @@ import { CommonModule, DatePipe } from '@angular/common';
 import {
   Component,
   Input,
+  Output,
+  EventEmitter,
   computed,
   signal,
   OnInit,
@@ -13,7 +15,12 @@ import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
 
-export type RosterTableAxisMode = 'shift-columns' | 'location-columns';
+/**
+ * Table view mode:
+ * - byShift: Columns are SHIFTS, filter by LOCATIONS (default)
+ * - byLocation: Columns are LOCATIONS, filter by SHIFTS
+ */
+export type TableViewMode = 'byShift' | 'byLocation';
 
 interface ShiftHdr {
   id: number;
@@ -54,26 +61,30 @@ export class ScheduleTableViewComponent implements OnInit, OnChanges {
   @Input() selectedLocationId: number | null = null;
   @Input() selectedShiftId: number | null = null;
 
-  private readonly AXIS_MODE_KEY = 'rosterTableAxisMode';
+  // Emit current view mode to parent for filter control
+  @Output() viewModeChange = new EventEmitter<TableViewMode>();
 
-  axisMode: RosterTableAxisMode = 'shift-columns';
+  // View mode: byShift (default) or byLocation
+  viewMode: TableViewMode = 'byShift';
   currentColumns: TableColumn[] = [];
   todayKey = signal<string>(new Date().toISOString().substring(0, 10));
 
   ngOnInit(): void {
-    // Restore axis mode from localStorage
-    const saved = localStorage.getItem(
-      this.AXIS_MODE_KEY
-    ) as RosterTableAxisMode | null;
-    if (saved === 'location-columns' || saved === 'shift-columns') {
-      this.axisMode = saved;
-    }
+    // Always start with byShift mode (columns = shifts, filter = locations)
+    this.viewMode = 'byShift';
     this.buildColumns();
+    this.viewModeChange.emit(this.viewMode);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     // Rebuild columns when shifts or locations change
     if (changes['shifts'] || changes['locations']) {
+      console.log(
+        '[Table] ngOnChanges - shifts:',
+        this.shifts?.length,
+        'locations:',
+        this.locations?.length
+      );
       this.buildColumns();
     }
   }
@@ -91,11 +102,13 @@ export class ScheduleTableViewComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Build columns based on current axis mode
+   * Build columns based on current view mode
+   * - byShift: columns are SHIFTS
+   * - byLocation: columns are LOCATIONS
    */
   buildColumns(): void {
-    if (this.axisMode === 'shift-columns') {
-      // COLUMNS = SHIFTS (current mode)
+    if (this.viewMode === 'byShift') {
+      // COLUMNS = SHIFTS (filter by locations)
       this.currentColumns = this.shifts.map((s) => ({
         id: s.id,
         label: s.name,
@@ -103,39 +116,42 @@ export class ScheduleTableViewComponent implements OnInit, OnChanges {
         meta: { type: 'shift' as const, shift: s },
       }));
     } else {
-      // COLUMNS = LOCATIONS
+      // COLUMNS = LOCATIONS (filter by shifts)
       this.currentColumns = this.locations.map((l) => ({
         id: l.id,
         label: l.name,
         meta: { type: 'location' as const, location: l },
       }));
     }
+
+    // Force new array reference for change detection
+    this.currentColumns = [...this.currentColumns];
   }
 
   /**
-   * Toggle between shift-columns and location-columns mode
+   * Toggle between byShift and byLocation mode
    */
-  toggleAxisMode(): void {
-    this.axisMode =
-      this.axisMode === 'shift-columns' ? 'location-columns' : 'shift-columns';
-    this.persistAxisMode();
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'byShift' ? 'byLocation' : 'byShift';
+    console.log('[Table] Toggle to mode:', this.viewMode);
+    console.log('[Table] Shifts available:', this.shifts.length);
+    console.log('[Table] Locations available:', this.locations.length);
     this.buildColumns();
+    console.log(
+      '[Table] Columns after build:',
+      this.currentColumns.length,
+      this.currentColumns.map((c) => c.label)
+    );
+    this.viewModeChange.emit(this.viewMode);
   }
 
   /**
-   * Save axis mode to localStorage
-   */
-  private persistAxisMode(): void {
-    localStorage.setItem(this.AXIS_MODE_KEY, this.axisMode);
-  }
-
-  /**
-   * Get assignments for a specific cell based on axis mode
+   * Get assignments for a specific cell based on view mode
    */
   getAssignmentsForCell(date: string, columnId: number): AssignmentRead[] {
     let items: AssignmentRead[];
 
-    if (this.axisMode === 'shift-columns') {
+    if (this.viewMode === 'byShift') {
       // columnId = shiftId; filter by selected locations
       items = this.assignments.filter(
         (a) =>
@@ -178,7 +194,7 @@ export class ScheduleTableViewComponent implements OnInit, OnChanges {
    * Get toggle button label based on current mode
    */
   getToggleButtonLabel(): string {
-    return this.axisMode === 'shift-columns'
+    return this.viewMode === 'byShift'
       ? 'Xem theo địa điểm'
       : 'Xem theo ca trực';
   }
@@ -187,9 +203,25 @@ export class ScheduleTableViewComponent implements OnInit, OnChanges {
    * Get toggle button icon based on current mode
    */
   getToggleButtonIcon(): string {
-    return this.axisMode === 'shift-columns'
-      ? 'pi pi-arrow-right-arrow-left'
-      : 'pi pi-arrow-left-arrow-right';
+    return this.viewMode === 'byShift' ? 'pi pi-map-marker' : 'pi pi-clock';
+  }
+
+  /**
+   * Get current mode display label
+   */
+  getModeLabel(): string {
+    return this.viewMode === 'byShift'
+      ? 'Hiển thị theo ca trực'
+      : 'Hiển thị theo địa điểm';
+  }
+
+  /**
+   * Get mode description for tooltip
+   */
+  getModeDescription(): string {
+    return this.viewMode === 'byShift'
+      ? 'Cột là ca trực, lọc theo địa điểm'
+      : 'Cột là địa điểm, lọc theo ca trực';
   }
 
   isToday(date: string): boolean {

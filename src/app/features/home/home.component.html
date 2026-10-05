@@ -1,203 +1,84 @@
-<div class="p-4 md:p-6 space-y-8">
-  <!-- Quick stats -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div
-      *ngFor="let s of stats"
-      class="stat-card-wrapper"
-      [ngClass]="s.colorClass"
-    >
-      <div class="stat-content">
-        <div class="stat-icon-wrapper">
-          <i class="pi stat-icon" [ngClass]="s.icon"></i>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ s.value }}</div>
-          <div class="stat-label">{{ s.label }}</div>
-        </div>
-      </div>
+<main class="ui-page dashboard ui-density-compact" [attr.aria-busy]="loading">
+  <header class="ui-page-header">
+    <div class="dashboard-heading"><p class="dashboard-eyebrow">TRANG CHỦ</p><h1 class="ui-page-title">Tổng quan công việc</h1><p class="ui-subtitle">{{ todayLabel }}</p></div>
+    <div class="dashboard-controls">
+      <div class="ui-field"><label for="overview-scope">Phạm vi đơn vị</label><app-ui-select inputId="overview-scope" label="Phạm vi đơn vị" [options]="scopeChoices" [(ngModel)]="scopeCode" (ngModelChange)="loadOverview()" [disabled]="loading" /></div>
+      <div class="ui-field"><label for="overview-period">Kỳ báo cáo</label><app-ui-select inputId="overview-period" label="Kỳ báo cáo" [options]="periodChoices" [(ngModel)]="period" (ngModelChange)="loadOverview()" [disabled]="loading" /></div>
+      @if (overview?.capabilities?.canCreateTravel) { <a class="ui-btn ui-btn--primary" routerLink="/travel/create"><i class="pi pi-plus" aria-hidden="true"></i>Tạo chuyến đi</a> }
+      @else if (overview?.capabilities?.canCreateRoster) { <a class="ui-btn ui-btn--primary" routerLink="/schedule/rosters/new"><i class="pi pi-plus" aria-hidden="true"></i>Lập kỳ lịch</a> }
     </div>
-  </div>
+  </header>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Left column: both main tables stacked -->
-    <div class="lg:col-span-2 flex flex-col gap-4 left-stack">
-      <!-- Upcoming shifts -->
-      <p-card class="home-card main-table-card">
-        <ng-template pTemplate="header">
-          <div class="flex items-center justify-between">
-            <div class="font-semibold">Ca trực sắp tới</div>
-            <a class="text-primary hover:underline" routerLink="/schedule"
-              >Xem lịch</a
-            >
+  @if (error) { <div class="ui-notice ui-notice--error" role="alert"><i class="pi pi-exclamation-circle" aria-hidden="true"></i><span>{{ error }}</span><button class="ui-btn" (click)="loadOverview()">Thử lại</button></div> }
+  @if (loading) {
+    <section class="ui-kpi-grid" aria-label="Đang tải tổng quan"><div class="ui-card ui-kpi loading-card" *ngFor="let item of skeletons"><div class="ui-skeleton"></div><div class="ui-skeleton loading-number"></div><div class="ui-skeleton"></div></div></section><p class="ui-sr-only" role="status">Đang tải dữ liệu tổng quan.</p>
+  }
+
+  @if (overview; as v) {
+    <div class="overview-meta"><span class="overview-scope"><span class="status-dot" aria-hidden="true"></span>{{ v.scopeName }}{{ personal ? '' : ' · dữ liệu theo quyền được cấp' }}</span><span class="overview-updated">Cập nhật {{ v.updatedAt | date:'HH:mm dd/MM/yyyy':'+0700' }} · GMT+7 <button class="refresh-button ui-link" aria-label="Làm mới tổng quan" title="Làm mới tổng quan" (click)="loadOverview()"><i class="pi pi-refresh" aria-hidden="true"></i></button></span></div>
+
+    @if (v.directory?.state === 'ready' && v.directory?.requiresSetup) {
+      <section class="ui-card ui-empty setup-card" aria-labelledby="setup-title"><span class="ui-icon"><i class="pi pi-building" aria-hidden="true"></i></span><h2 id="setup-title">Hoàn thiện danh mục để bắt đầu</h2><p>Tạo đơn vị gốc, các đơn vị trực thuộc và cán bộ; liên kết đúng tài khoản Keycloak trước khi phân công lịch hoặc lập giấy đi đường.</p><div class="setup-steps"><span>01 · Đơn vị</span><span>02 · Cán bộ / SSO</span><span>03 · Ca và địa điểm</span><span>04 · Cấp quyền</span></div><a class="ui-btn ui-btn--primary" routerLink="/admin/directory">Mở tổ chức và cán bộ<i class="pi pi-arrow-up-right" aria-hidden="true"></i></a></section>
+    }
+
+    <section class="ui-kpi-grid" aria-label="Chỉ số tổng quan">
+      @if (v.roster.state !== 'unavailable') {
+        <article class="ui-card ui-kpi"><div class="ui-kpi-label">{{ personal ? 'Ca của tôi hôm nay' : 'Phân công hôm nay' }}<span class="ui-icon"><i class="pi pi-users" aria-hidden="true"></i></span></div><strong class="ui-kpi-value" data-testid="today-count">{{ v.roster.state === 'ready' ? v.roster.todayCount : '—' }}</strong><div class="ui-kpi-footer"><span>{{ v.roster.state === 'ready' ? dateOnly(v.today) + ' · lịch đã xuất bản / khóa' : sectionHint(v.roster.state) }}</span><a *ngIf="v.roster.state === 'ready'" class="ui-link" routerLink="/schedule/rosters">Mở lịch trực ↗</a></div></article>
+        <article class="ui-card ui-kpi"><div class="ui-kpi-label">{{ personal ? 'Ca của tôi trong kỳ' : 'Kỳ lịch đang hiệu lực' }}<span class="ui-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span></div><strong class="ui-kpi-value" data-testid="roster-count">{{ v.roster.state === 'ready' ? (personal ? v.roster.myShiftCount : v.roster.activeRosterCount) : '—' }}</strong><div class="ui-kpi-footer"><span>{{ v.roster.state === 'ready' ? (personal ? periodLabel : 'Tính đến hôm nay') : sectionHint(v.roster.state) }}</span><a *ngIf="v.roster.state === 'ready'" class="ui-link" routerLink="/schedule/rosters">Mở kỳ lịch ↗</a></div></article>
+      }
+      @if (v.travel.state !== 'unavailable') {
+        <article class="ui-card ui-kpi"><div class="ui-kpi-label">{{ personal ? 'Giấy đi đường của tôi' : 'Giấy đi đường trong kỳ' }}<span class="ui-icon"><i class="pi pi-file" aria-hidden="true"></i></span></div><strong class="ui-kpi-value" data-testid="order-count">{{ v.travel.state === 'ready' ? v.travel.totalCount : '—' }}</strong><div class="ui-kpi-footer"><span>{{ v.travel.state === 'ready' ? 'Tạo trong ' + periodLabel : sectionHint(v.travel.state) }}</span><a *ngIf="v.travel.state === 'ready'" class="ui-link" routerLink="/travel">Xem giấy ↗</a></div></article>
+      }
+      @if (v.introduction && v.introduction.state !== 'unavailable') {
+        <article class="ui-card ui-kpi"><div class="ui-kpi-label">Giấy giới thiệu trong kỳ<span class="ui-icon"><i class="pi pi-id-card" aria-hidden="true"></i></span></div><strong class="ui-kpi-value" data-testid="introduction-count">{{ v.introduction.state === 'ready' ? v.introduction.totalCount : '—' }}</strong><div class="ui-kpi-footer"><span>{{ v.introduction.state === 'ready' ? 'Tạo trong ' + periodLabel : sectionHint(v.introduction.state) }}</span><a *ngIf="v.introduction.state === 'ready'" class="ui-link" routerLink="/introduction-letters">Xem giấy ↗</a></div></article>
+      }
+    </section>
+
+    @if (v.roster.state === 'error' || v.travel.state === 'error' || v.introduction?.state === 'error') { <div class="ui-notice ui-notice--error section-error" role="alert"><span>Một phần tổng quan chưa tải được. Các khối còn lại vẫn hiển thị dữ liệu đã tải thành công.</span><button class="ui-btn" (click)="loadOverview()">Thử lại</button></div> }
+    @if (v.roster.state === 'unavailable' && v.travel.state === 'unavailable' && v.introduction?.state === 'unavailable') { <div class="ui-notice access-notice"><i class="pi pi-info-circle" aria-hidden="true"></i><span>Bạn chưa có quyền hoặc phạm vi xem dữ liệu nghiệp vụ ở lựa chọn này. Chọn “Công việc của tôi” hoặc liên hệ quản trị để cấp quyền.</span></div> }
+
+    @if (v.roster.state === 'ready' && v.roster.myPendingSwapCount > 0) {
+      <section class="ui-card attention" aria-labelledby="attention-title"><div><h2 class="ui-panel-title" id="attention-title">Việc cần theo dõi</h2><p class="ui-panel-caption">Trong phạm vi đã chọn</p></div><div class="attention-items">
+        @if (v.roster.state === 'ready' && v.roster.myPendingSwapCount > 0) { <div class="attention-item"><span class="attention-count ui-numeric">{{ v.roster.myPendingSwapCount }}</span><div><h3>Yêu cầu đổi ca liên quan đến bạn</h3><p>Đang chờ xử lý · tài khoản của bạn</p></div></div> }
+      </div></section>
+    }
+
+    @if (v.roster.state === 'ready' || v.travel.state === 'ready') {
+      <section class="dashboard-charts" aria-label="Biểu đồ nghiệp vụ" [class.single-column]="v.roster.state !== 'ready' || v.travel.state !== 'ready'">
+        @if (v.roster.state === 'ready') { <article class="ui-card ui-panel"><div class="ui-panel-header"><div><h2 class="ui-panel-title">Lượt phân công theo ngày</h2><p class="ui-panel-caption">{{ v.scopeName }} · {{ dateOnly(v.roster.chartStart) }}–{{ dateOnly(v.roster.chartEnd) }}</p></div><span class="ui-badge ui-badge--success">14 ngày đến hôm nay</span></div>
+          @if (hasDailyCounts) { <app-daily-bar-chart [data]="v.roster.dailyCounts" [label]="'Lượt phân công · ' + v.scopeName"/><p class="chart-note ui-muted">Đơn vị: lượt · lịch đã xuất bản / khóa, không gồm phân công hủy.</p> }
+          @else { <div class="ui-empty"><span class="ui-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span><h3>Chưa có lượt phân công trong 14 ngày</h3><p>Lịch đã xuất bản sẽ được tổng hợp trong phạm vi này.</p><a class="ui-btn" routerLink="/schedule/rosters">Mở lịch trực</a></div> }
+        </article> }
+        @if (v.travel.state === 'ready') { <article class="ui-card ui-panel"><div class="ui-panel-header"><div><h2 class="ui-panel-title">Giấy đi đường</h2><p class="ui-panel-caption">Trạng thái giấy tạo trong {{ periodLabel }}</p></div><span class="ui-badge">Trong kỳ</span></div>
+           @if (v.travel.totalCount > 0) { <app-status-donut-chart [data]="displayTravelStatuses(v.travel.statusCounts)" [label]="'Giấy đi đường · ' + v.scopeName + ' · ' + periodLabel"/><p class="chart-note ui-muted">Theo trạng thái giấy trong kỳ.</p> }
+           @else { <div class="ui-empty"><span class="ui-icon"><i class="pi pi-file" aria-hidden="true"></i></span><h3>Chưa có giấy đi đường trong kỳ</h3><p>Kiểm tra kỳ báo cáo hoặc tạo chuyến đi khi có nhu cầu.</p><a class="ui-btn" routerLink="/travel">Mở giấy đi đường</a></div> }
+        </article> }
+      </section>
+    }
+
+    <div class="dashboard-lower" [class.single-column]="v.roster.state !== 'ready'">
+      @if (v.roster.state === 'ready') {
+        <section class="ui-card ui-panel" aria-labelledby="duty-title"><div class="ui-panel-header"><div><h2 class="ui-panel-title" id="duty-title">{{ personal ? 'Lịch trực của tôi' : 'Lịch trực trong phạm vi' }}</h2><p class="ui-panel-caption">{{ v.scopeName }} · danh sách rút gọn</p></div><a class="ui-btn" routerLink="/schedule/rosters">Mở lịch trực ↗</a></div>
+          <div class="ui-tabs" role="tablist" aria-label="Khoảng thời gian trực" (keydown)="tabKey($event)"><button id="duty-today-tab" role="tab" [attr.aria-selected]="activeTab === 'today'" [attr.tabindex]="activeTab === 'today' ? 0 : -1" aria-controls="duty-panel" (click)="activeTab = 'today'">Hôm nay · {{ dateOnly(v.today).slice(0, 5) }}</button><button id="duty-upcoming-tab" role="tab" [attr.aria-selected]="activeTab === 'upcoming'" [attr.tabindex]="activeTab === 'upcoming' ? 0 : -1" aria-controls="duty-panel" (click)="activeTab = 'upcoming'">Sắp tới · 7 ngày</button></div>
+          <div id="duty-panel" role="tabpanel" [attr.aria-labelledby]="'duty-' + activeTab + '-tab'">
+            @if (assignments.length) { <div class="ui-table-wrap duty-table"><table class="ui-data-table"><caption class="ui-sr-only">{{ activeTab === 'today' ? 'Phân công hôm nay' : 'Phân công 7 ngày tới' }} · {{ v.scopeName }}</caption><thead><tr><th scope="col">Cán bộ</th><th scope="col">Thời gian</th><th scope="col">Địa điểm</th><th scope="col">Trạng thái</th></tr></thead><tbody><tr *ngFor="let item of assignments"><td><div class="staff"><span class="staff-avatar" aria-hidden="true">{{ shortName(item.staffName) }}</span><div><a class="ui-link" [routerLink]="['/schedule/view', item.rosterId]">{{ item.staffName }}</a><small>{{ item.unitName }}</small></div></div></td><td class="ui-numeric"><span>{{ item.timeRange }}</span><small>{{ item.shiftName }} · {{ dateOnly(item.date) }}</small></td><td>{{ item.locationName }}</td><td><span class="ui-badge" [class.ui-badge--warning]="item.status === 'PendingSwap'" [class.ui-badge--success]="item.status !== 'PendingSwap'">{{ item.status === 'PendingSwap' ? 'Chờ đổi ca' : 'Đã phân công' }}</span></td></tr></tbody></table></div><div class="table-footer ui-muted">Hiển thị {{ assignments.length }} / {{ assignmentCount }} lượt phân công · lịch đã xuất bản / khóa</div> }
+            @else { <div class="ui-empty"><span class="ui-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span><h3>{{ activeTab === 'today' ? 'Hôm nay chưa có phân công' : 'Chưa có phân công trong 7 ngày tới' }}</h3><p>Kiểm tra lịch trong phạm vi được cấp hoặc liên hệ người lập lịch.</p></div> }
           </div>
-        </ng-template>
-
-        <p-table [value]="upcoming" [tableStyle]="{ 'min-width': '40rem' }">
-          <ng-template pTemplate="header">
-            <tr>
-              <th>Ngày</th>
-              <th>Giờ</th>
-              <th>Địa điểm</th>
-              <th>Vai trò</th>
-              <th>Trạng thái</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-r>
-            <tr>
-              <td>{{ r.date }}</td>
-              <td>{{ r.time }}</td>
-              <td>{{ r.location }}</td>
-              <td>{{ r.role }}</td>
-              <td>
-                <p-tag
-                  [value]="r.status || 'Scheduled'"
-                  [severity]="r.status === 'Pending Swap' ? 'warn' : 'success'"
-                  class="text-xs"
-                ></p-tag>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </p-card>
-
-      <!-- Today coverage -->
-      <p-card class="home-card main-table-card">
-        <ng-template pTemplate="header">
-          <div class="font-semibold">Trực hôm nay</div>
-        </ng-template>
-        <p-table [value]="todayCoverage">
-          <ng-template pTemplate="header">
-            <tr>
-              <th>Địa điểm</th>
-              <th>Vai trò</th>
-              <th>Phân công</th>
-              <th>Giờ</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-r>
-            <tr>
-              <td>{{ r.location }}</td>
-              <td>{{ r.role }}</td>
-              <td>
-                <div class="flex items-center gap-2">
-                  <p-avatar
-                    label="{{ r.assignee[0] }}"
-                    shape="circle"
-                  ></p-avatar>
-                  <span>{{ r.assignee }}</span>
-                </div>
-              </td>
-              <td>{{ r.time }}</td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </p-card>
+        </section>
+      }
+      <aside class="ui-card ui-panel" aria-labelledby="notices-title"><div class="ui-panel-header"><div><h2 class="ui-panel-title" id="notices-title">Thông báo mới</h2><p class="ui-panel-caption">Gắn với tài khoản của bạn</p></div><span class="ui-badge ui-badge--success" *ngIf="!notificationError && !loadingNotifications">{{ totalUnread }} chưa đọc</span></div>
+        @if (loadingNotifications) { <p class="ui-muted" role="status">Đang tải thông báo…</p> }
+        @else if (notificationError) { <div class="ui-notice ui-notice--error" role="alert">{{ notificationError }}<button class="ui-btn" (click)="loadNotifications()">Thử lại</button></div> }
+        @else if (notifications.length) { <button class="notification-item" *ngFor="let item of notifications" (click)="onNotificationClick(item)"><span class="ui-icon"><i class="pi pi-bell" aria-hidden="true"></i></span><span><strong [class.is-read]="item.isRead">{{ item.title }}</strong><span class="notification-message">{{ item.message }}</span><time>{{ item.createdAt | date:'HH:mm dd/MM/yyyy':'+0700' }}</time><span class="notification-action">{{ item.linkUrl ? 'Mở thông báo ↗' : item.isRead ? 'Đã đọc' : 'Đánh dấu đã đọc' }}</span></span></button> }
+        @else { <div class="ui-empty"><span class="ui-icon"><i class="pi pi-bell" aria-hidden="true"></i></span><h3>Chưa có thông báo mới</h3><p>Thông báo về công việc sẽ xuất hiện tại đây.</p></div> }
+        <button class="ui-btn ui-btn--ghost" (click)="loadNotifications()" [disabled]="loadingNotifications">Làm mới thông báo</button>
+      </aside>
     </div>
 
-    <!-- Right column: stacked cards, spacing consistent -->
-    <div class="flex flex-col gap-6">
-      <p-card class="home-card">
-        <ng-template pTemplate="header">
-          <div class="font-semibold">Thông báo</div>
-        </ng-template>
-        <div class="space-y-4">
-          <div *ngFor="let a of announcements" class="flex gap-3">
-            <p-avatar
-              icon="pi pi-megaphone"
-              styleClass="!bg-primary/10 !text-primary"
-            ></p-avatar>
-            <div>
-              <div class="font-medium">{{ a.title }}</div>
-              <div class="text-surface-500 text-sm">{{ a.content }}</div>
-              <div class="text-surface-400 text-xs mt-1">{{ a.time }}</div>
-            </div>
-          </div>
-        </div>
-      </p-card>
-
-      <p-card class="home-card">
-        <ng-template pTemplate="header">
-          <div class="font-semibold">Thao tác nhanh</div>
-        </ng-template>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            *ngFor="let q of quickActions"
-            pButton
-            type="button"
-            [icon]="q.icon"
-            [label]="q.label"
-            class="p-button-rounded p-button-outlined w-full"
-            [routerLink]="q.routerLink"
-          ></button>
-        </div>
-      </p-card>
-
-      <p-card class="home-card activity-card">
-        <ng-template pTemplate="header">
-          <div class="font-semibold">Hoạt động gần đây</div>
-        </ng-template>
-        <div class="activity-timeline">
-          <div *ngFor="let a of activity" class="activity-item">
-            <div class="activity-time">{{ a.when }}</div>
-            <div class="activity-content">
-              <div class="activity-title">{{ a.title }}</div>
-              <div class="activity-text">{{ a.text }}</div>
-            </div>
-          </div>
-        </div>
-      </p-card>
-
-      <p-card class="home-card">
-        <ng-template pTemplate="header">
-          <div class="font-semibold">Liên kết hữu ích</div>
-        </ng-template>
-        <div class="space-y-3">
-          <a
-            routerLink="/admin/catalog/duty-locations"
-            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
-          >
-            <i class="pi pi-list text-primary text-lg"></i>
-            <div>
-              <div
-                class="text-sm font-medium text-surface-900 group-hover:text-primary"
-              >
-                Quản lý danh mục
-              </div>
-              <div class="text-xs text-surface-500">
-                Địa điểm, ca trực, vai trò
-              </div>
-            </div>
-          </a>
-          <a
-            routerLink="/admin/access/roles"
-            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
-          >
-            <i class="pi pi-shield text-primary text-lg"></i>
-            <div>
-              <div
-                class="text-sm font-medium text-surface-900 group-hover:text-primary"
-              >
-                Quyền và vai trò
-              </div>
-              <div class="text-xs text-surface-500">Phân quyền hệ thống</div>
-            </div>
-          </a>
-          <a
-            routerLink="/schedule"
-            class="flex items-center gap-3 p-2 rounded-md hover:bg-surface-50 transition-colors group"
-          >
-            <i class="pi pi-calendar-plus text-primary text-lg"></i>
-            <div>
-              <div
-                class="text-sm font-medium text-surface-900 group-hover:text-primary"
-              >
-                Lập lịch tháng
-              </div>
-              <div class="text-xs text-surface-500">Tạo và quản lý kỳ lịch</div>
-            </div>
-          </a>
-        </div>
-      </p-card>
+    <div class="dashboard-footer">
+      @if (v.capabilities.canManageDirectory) { <section class="ui-card compact-panel"><span class="ui-icon"><i class="pi pi-check-circle" aria-hidden="true"></i></span><div><h2 class="ui-panel-title">Danh mục và cấu hình</h2><p class="ui-panel-caption">{{ v.directory?.state === 'ready' ? v.directory?.organizationCount + ' đơn vị · ' + v.directory?.personnelCount + ' cán bộ đang hoạt động' : 'Chưa tải được tổng quan danh mục' }}</p></div><a class="ui-link" routerLink="/admin/directory">Mở quản trị ↗</a></section> }
+      @else if (v.capabilities.canManageAccess) { <section class="ui-card compact-panel"><span class="ui-icon"><i class="pi pi-shield" aria-hidden="true"></i></span><div><h2 class="ui-panel-title">Vai trò và phạm vi</h2><p class="ui-panel-caption">Quản lý quyền sử dụng theo đơn vị.</p></div><a class="ui-link" routerLink="/admin/access/user-roles">Mở phân quyền ↗</a></section> }
+      <section class="ui-card compact-panel"><span class="ui-icon"><i class="pi pi-id-card" aria-hidden="true"></i></span><div><h2 class="ui-panel-title">Giấy giới thiệu</h2><p class="ui-panel-caption">Lập, quản lý và in giấy giới thiệu.</p></div><a class="ui-link" routerLink="/introduction-letters">Mở giấy giới thiệu ↗</a></section>
     </div>
-  </div>
-</div>
+  }
+</main>

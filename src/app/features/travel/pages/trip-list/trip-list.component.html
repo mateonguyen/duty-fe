@@ -1,0 +1,267 @@
+<section class="travel-list-page ui-page">
+  <header class="list-header">
+    <div class="list-header-title">
+      <h1 class="ui-page-title">Danh sách giấy đi đường</h1>
+      <p class="ui-subtitle">Bản nháp chưa có số và có thể sửa. Lấy số giấy để chuyển sang chính thức và khóa nội dung. In không đổi trạng thái.</p>
+    </div>
+    <div class="header-metrics" aria-label="Thống kê giấy đi đường">
+      <div class="header-metric"><strong><ng-container *ngIf="!isLoading(); else kpiLoading">{{ orders().length }}</ng-container></strong><span>Giấy</span></div>
+      <div class="header-metric"><strong><ng-container *ngIf="!isLoading(); else kpiLoading">{{ draftCount() }}</ng-container></strong><span>Bản nháp</span></div>
+      <div class="header-metric"><strong><ng-container *ngIf="!isLoading(); else kpiLoading">{{ finalizedCount() }}</ng-container></strong><span>Chính thức</span></div>
+      <div class="header-metric"><strong><ng-container *ngIf="!isLoading(); else kpiLoading">{{ archivedCount() }}</ng-container></strong><span>Thu hồi / xóa</span></div>
+    </div>
+    <button class="ui-btn ui-btn--primary" type="button" (click)="onCreateNew()">
+      <i class="pi pi-plus" aria-hidden="true"></i>
+      Tạo mới
+    </button>
+  </header>
+
+  <div *ngIf="errorMsg()" class="ui-notice ui-notice--error page-notice" role="alert">
+    <i class="pi pi-exclamation-circle" aria-hidden="true"></i>{{ errorMsg() }}
+  </div>
+
+  <ng-template #kpiLoading><span class="ui-skeleton kpi-skeleton"></span></ng-template>
+
+  <div class="filter-bar" role="search" aria-label="Lọc giấy đi đường">
+    <div class="fg grow">
+      <label class="ui-sr-only" for="trip-keyword">Từ khóa</label>
+      <div class="fg-search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          id="trip-keyword"
+          type="search"
+          class="fg-input"
+          [ngModel]="orderFilter().keyword"
+          (ngModelChange)="updateOrderFilter({ keyword: $event })"
+          placeholder="Tên cán bộ, người duyệt, mã bộ, số giấy..."
+        />
+      </div>
+    </div>
+
+    <div class="fg fg-status">
+      <app-ui-select label="Trạng thái" [options]="statusChoices" [searchable]="false"
+        [ngModel]="orderFilter().status"
+        (ngModelChange)="updateOrderFilter({ status: $event })"
+      />
+    </div>
+
+    <div class="fg fg-date">
+      <label class="date-label" for="trip-from">Từ</label>
+      <p-datepicker
+        inputId="trip-from"
+        placeholder="Chọn ngày"
+        dateFormat="dd/mm/yy"
+        [showIcon]="true"
+        iconDisplay="input"
+        [readonlyInput]="true"
+        [showButtonBar]="true"
+        appendTo="body"
+        [ngModel]="filterFromDate()"
+        (ngModelChange)="onDateFilterChange('fromDate', $event)"
+      />
+    </div>
+
+    <div class="fg fg-date">
+      <label class="date-label" for="trip-to">Đến</label>
+      <p-datepicker
+        inputId="trip-to"
+        placeholder="Chọn ngày"
+        dateFormat="dd/mm/yy"
+        [showIcon]="true"
+        iconDisplay="input"
+        [readonlyInput]="true"
+        [showButtonBar]="true"
+        appendTo="body"
+        [ngModel]="filterToDate()"
+        (ngModelChange)="onDateFilterChange('toDate', $event)"
+      />
+    </div>
+
+    <button class="ui-btn btn-clear" type="button" (click)="resetOrderFilters()" [disabled]="!hasActiveFilter()">
+      <i class="pi pi-filter-slash" aria-hidden="true"></i>
+      Xóa lọc
+    </button>
+    <span class="filter-divider" aria-hidden="true"></span>
+    <button class="ui-btn btn-print-selected" type="button" [disabled]="!selectedOrderIds().size || isPrinting()" (click)="printSelected()">
+      <i class="pi pi-print" aria-hidden="true"></i>
+      {{ isPrinting() ? 'Đang tạo PDF...' : 'In đã chọn (' + selectedOrderIds().size + ')' }}
+    </button>
+  </div>
+
+  <section class="table-card" [attr.aria-busy]="isLoading()">
+    <div class="list-sort-note"><i class="pi pi-sort-amount-down" aria-hidden="true"></i> Sắp xếp theo ngày tạo bộ giấy: mới nhất trước</div>
+    <div class="table-loading" *ngIf="isLoading(); else tableContent">
+      <div class="skeleton-row" *ngFor="let n of [1, 2, 3, 4, 5]">
+        <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+      </div>
+      <span class="ui-sr-only" role="status">Đang tải dữ liệu giấy đi đường.</span>
+    </div>
+
+    <ng-template #tableContent>
+      <div
+        class="table-wrap"
+        *ngIf="pagedOrders().length > 0; else emptyOrderState"
+      >
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-select"><input type="checkbox" aria-label="Chọn tất cả giấy trên trang" [checked]="isPageSelected()" [disabled]="!hasPagePrintableOrders()" (change)="togglePage($any($event.target).checked)" /></th>
+              <th class="col-paper-no">Số giấy</th>
+              <th class="col-person">Cán bộ</th>
+              <th class="col-signer">Người duyệt</th>
+              <th class="col-orderno">Số công lệnh</th>
+              <th class="col-date">Từ ngày</th>
+              <th class="col-date">Đến ngày</th>
+              <th class="col-status">Trạng thái</th>
+              <th class="col-actions"><span class="ui-sr-only">Hành động</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let group of pagedTripGroups()">
+            <tr class="trip-group-row">
+              <td colspan="9">
+                <div class="trip-group-content">
+                  <div class="trip-group-identity">
+                     <input type="checkbox" [attr.aria-label]="'Chọn các giấy trong bộ ' + formatTripGroupCode(group.tripNo)" [checked]="isTripSelected(group)" [disabled]="!hasTripPrintableOrders(group.tripId)" (change)="toggleTrip(group, $any($event.target).checked)" />
+                    <button class="trip-group-toggle" type="button" [attr.aria-label]="(isTripCollapsed(group.tripId) ? 'Mở' : 'Thu gọn') + ' bộ ' + formatTripGroupCode(group.tripNo)" [attr.aria-expanded]="!isTripCollapsed(group.tripId)" (click)="toggleTripCollapsed(group.tripId)">
+                      <i class="pi" [class.pi-chevron-down]="isTripCollapsed(group.tripId)" [class.pi-chevron-up]="!isTripCollapsed(group.tripId)" aria-hidden="true"></i>
+                    </button>
+                    <span class="trip-group-icon"><i class="pi pi-folder" aria-hidden="true"></i></span>
+                    <strong>Bộ giấy đi đường</strong>
+                    <span class="trip-group-code" [title]="'Mã lưu: ' + group.tripNo">{{ formatTripGroupCode(group.tripNo) }}</span>
+                     <span class="trip-group-created">Tạo {{ group.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                    <span class="trip-group-count">{{ group.totalOrders }} giấy<span *ngIf="group.orders.length !== group.totalOrders"> · {{ group.orders.length }} phù hợp bộ lọc</span></span>
+                    <span class="trip-group-people" *ngIf="isTripCollapsed(group.tripId)">{{ group.peopleSummary }}</span>
+                  </div>
+                   <div class="trip-group-actions" *ngIf="orderFilter().status !== 'ARCHIVED'">
+                    <button class="ui-btn" type="button" *ngIf="group.canEdit" (click)="onEditTrip(group.tripId)"><i class="pi pi-pencil" aria-hidden="true"></i>Sửa bộ</button>
+                    <button class="ui-btn ui-btn--primary" type="button" *ngIf="group.canTakeNumber && (group.status === 'DRAFT' || group.status === 'PRINTED')" [disabled]="changingTripId() !== null" (click)="onIssueTrip(group.tripId)"><i class="pi pi-check" aria-hidden="true"></i>Lấy số giấy</button>
+                    <button class="ui-btn ui-btn--primary" type="button" *ngIf="group.status !== 'DELETED'" [title]="'In các giấy chưa xóa trong bộ'" [disabled]="printingTripId() !== null" (click)="onPrintTrip(group.tripId)"><i class="pi pi-print" aria-hidden="true"></i>{{ printingTripId() === group.tripId ? 'Đang tạo PDF...' : 'In bộ' }}</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <ng-container *ngIf="!isTripCollapsed(group.tripId)">
+            <tr *ngFor="let order of group.orders">
+              <td class="col-select"><input type="checkbox" [attr.aria-label]="'Chọn giấy của ' + order.fullName" [checked]="selectedOrderIds().has(order.id)" [disabled]="order.status === 'DELETED'" (change)="toggleOrder(order.id, $any($event.target).checked)" /></td>
+              <td class="col-paper-no"><span class="orderno-chip" [title]="'Mã lưu: ' + order.orderNo">{{ formatOrderNo(order.orderNo) }}</span></td>
+              <td class="col-person">
+                <div class="cell-name">{{ getDisplayNameWithRank(order) }}</div>
+                <div class="cell-unit">{{ order.unitName || "—" }}</div>
+              </td>
+              <td class="col-signer">
+                <span [class.signer-missing]="isMissingValue(order.signerName)">
+                  {{ formatSignerName(order.signerName) }}
+                </span>
+                <div class="cell-unit" *ngIf="order.signerPositionTitle">{{ order.signerPositionTitle }}</div>
+              </td>
+              <td class="col-orderno">
+                <span
+                  class="orderno-chip"
+                  *ngIf="order.missionNo; else noOrderNo"
+                >
+                  {{ order.missionNo }}
+                </span>
+                <ng-template #noOrderNo
+                  ><span class="empty-dash">—</span></ng-template
+                >
+              </td>
+              <td class="col-date ui-numeric">
+                <span [class.empty-dash]="formatDate(order.fromDate) === '—'">
+                  {{ formatDate(order.fromDate) }}
+                </span>
+              </td>
+              <td class="col-date ui-numeric">
+                <span [class.empty-dash]="formatDate(order.toDate) === '—'">
+                  {{ formatDate(order.toDate) }}
+                </span>
+              </td>
+              <td class="col-status">
+                <span [class]="statusClass(order.status)" [title]="statusHint(order.status, order.legacyReviewedAt, order.issuedAt)">{{
+                  statusLabel(order.status, order.legacyReviewedAt, order.issuedAt)
+                }}</span>
+              </td>
+              <td class="col-actions">
+                <div class="action-btns">
+                   <button class="action-btn" type="button" title="Xem giấy" aria-label="Xem giấy" (click)="onViewOrder(order.id)">
+                    <i class="pi pi-eye" aria-hidden="true"></i>
+                  </button>
+                     <button class="action-btn" type="button" *ngIf="order.status !== 'DELETED'" title="In giấy; không đổi trạng thái" aria-label="In giấy" (click)="onExportOrderPdf(order.id)">
+                    <i class="pi pi-print" aria-hidden="true"></i>
+                  </button>
+                  <button class="action-btn" type="button" title="Sửa giấy" aria-label="Sửa giấy" *ngIf="order.canEdit" (click)="onEditOrder(order.id)">
+                    <i class="pi pi-pencil" aria-hidden="true"></i>
+                  </button>
+                  <button class="action-btn" type="button" title="Sao chép" aria-label="Sao chép giấy" *ngIf="order.canEdit" (click)="onCopyOrder(order.id)">
+                    <i class="pi pi-copy" aria-hidden="true"></i>
+                  </button>
+                  <button class="action-btn action-btn--danger" type="button" title="Xóa giấy nháp" aria-label="Xóa giấy nháp" *ngIf="order.canDelete" (click)="onDeleteOrder(order.id)">
+                    <i class="pi pi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            </ng-container>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #emptyOrderState>
+        <div class="ui-empty">
+          <span class="empty-icon"><i class="pi" [class.pi-file]="!orders().length" [class.pi-search]="orders().length" aria-hidden="true"></i></span>
+          <ng-container *ngIf="!orders().length; else noMatch">
+            <h3>Chưa có giấy đi đường nào</h3>
+            <p>Tạo bộ giấy đi đường đầu tiên để bắt đầu theo dõi.</p>
+            <button class="ui-btn ui-btn--primary" type="button" (click)="onCreateNew()">
+              <i class="pi pi-plus" aria-hidden="true"></i>Tạo mới
+            </button>
+          </ng-container>
+          <ng-template #noMatch>
+            <h3>Không tìm thấy giấy phù hợp</h3>
+            <p>Thử đổi từ khóa, trạng thái hoặc khoảng ngày.</p>
+            <button class="ui-btn" type="button" (click)="resetOrderFilters()">
+              <i class="pi pi-filter-slash" aria-hidden="true"></i>Xóa bộ lọc
+            </button>
+          </ng-template>
+        </div>
+      </ng-template>
+
+      <div class="table-footer" *ngIf="filteredOrders().length > 0">
+        <div class="table-footer-left">
+          Bộ <strong>{{ orderStartIndex() }}–{{ orderEndIndex() }}</strong> / <strong>{{ filteredTripGroups().length }}</strong>
+          · {{ pagedOrders().length }} giấy trên trang
+          <span class="pagination-note">· Không tách giấy cùng bộ</span>
+        </div>
+        <div class="table-footer-right">
+          <span>Bộ/trang</span>
+          <app-ui-select class="page-size" label="Số bộ mỗi trang" [options]="pageSizeChoices" [searchable]="false"
+            [ngModel]="orderPageSize()"
+            (ngModelChange)="onOrderPageSizeChange($event)"
+          />
+          <span class="page-indicator ui-numeric">Trang {{ orderPage() }} / {{ orderTotalPages() }}</span>
+          <button
+            class="pg-btn"
+            type="button"
+            aria-label="Trang trước"
+            (click)="goToOrderPage(orderPage() - 1)"
+            [disabled]="orderPage() <= 1"
+          >
+            <i class="pi pi-angle-left" aria-hidden="true"></i>
+          </button>
+          <button
+            class="pg-btn"
+            type="button"
+            aria-label="Trang sau"
+            (click)="goToOrderPage(orderPage() + 1)"
+            [disabled]="orderPage() >= orderTotalPages()"
+          >
+            <i class="pi pi-angle-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </section>
+</section>
+<app-numbering-dialog *ngIf="numberingTripId() as tripId" [tripId]="tripId"
+  (closed)="onNumberingClosed()" (numbered)="onNumbered(tripId)" />

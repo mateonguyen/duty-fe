@@ -1,4 +1,4 @@
-<div class="flex flex-col h-full">
+<div class="staff-tree-shell">
   <div class="p-2 border-b flex-shrink-0">
     <div class="relative group">
       <i
@@ -14,17 +14,19 @@
         (blur)="isFocus = false"
         placeholder="Tìm cán bộ..."
         [ngModel]="query()"
-        (ngModelChange)="query.set($event)"
+        (ngModelChange)="onQueryChange($event)"
       />
       <i
         *ngIf="isFocus || query()"
         class="pi pi-times absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-red-500"
-        (click)="query.set(''); q.blur(); isFocus = false"
+        (click)="onQueryChange(''); q.blur(); isFocus = false"
       ></i>
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto">
+  <div class="staff-list-frame">
+  <div #staffScroll class="staff-list-scroll" (scroll)="updateScrollbar()" tabindex="0" aria-label="Danh sách cán bộ">
+    <div #staffContent>
     <ng-container *ngIf="filteredTree">
       <ng-template #recursiveTree let-nodes>
         <div *ngFor="let node of nodes" class="border-b last:border-b-0">
@@ -103,5 +105,11 @@
         *ngTemplateOutlet="recursiveTree; context: { $implicit: filteredTree }"
       ></ng-container>
     </ng-container>
+    </div>
+  </div>
+  <div *ngIf="scrollbarVisible()" class="staff-scroll-track" aria-hidden="true">
+    <div class="staff-scroll-thumb" [style.height.px]="thumbHeight()" [style.transform]="'translateY(' + thumbTop() + 'px)'"
+      (pointerdown)="startThumbDrag($event)" (pointermove)="moveThumbDrag($event)" (pointerup)="endThumbDrag($event)" (pointercancel)="endThumbDrag($event)"></div>
+  </div>
   </div>
 </div>

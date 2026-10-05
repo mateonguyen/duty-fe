@@ -164,8 +164,7 @@
   }
 
   .perm-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      "Liberation Mono", "Courier New", monospace;
+    font-family: var(--app-font-family);
     font-size: 0.875rem;
     color: #7c3aed;
     background: #f3e8ff;
@@ -186,3 +185,7 @@
     line-height: 1.5;
   }
 }
+
+.unused { color:#91602e; background:#fff5df; font-size:11px; border-radius:4px; padding:2px 6px; }
+
+.permission-help { color:#6d785f; font-size:12px; }

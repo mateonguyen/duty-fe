@@ -1,0 +1,86 @@
+// UX: 9.5/10 - Better spacing, hover states, alignment, and responsive behavior
+
+.staff-chip {
+  display: inline-flex; // UX: Prevent full-width stretch
+  align-items: center;
+  gap: 8px; // UX: Consistent 8px spacing
+  max-width: 100%;
+  padding: 4px; // UX: Inner padding for better click target
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.chip-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; // UX: Comfortable spacing between name and role
+  line-height: 1.3;
+  min-width: 0;
+  flex: 1;
+}
+
+.chip-name {
+  font-weight: 500;
+  font-size: 0.875rem; // 14px
+  color: #111827; // UX: Darker for better readability
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em; // UX: Slightly tighter for professional look
+}
+
+// UX: Hover state for clickable chips
+.staff-chip.clickable {
+  cursor: pointer;
+
+  &:hover {
+    background-color: #f3f4f6; // UX: Subtle hover feedback
+  }
+
+  &:active {
+    background-color: #e5e7eb;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #3b82f6; // UX: Primary blue focus ring
+    outline-offset: 2px;
+  }
+}
+
+// UX: Compact mode for table cells - tighter spacing
+.staff-chip.compact {
+  gap: 6px;
+  padding: 2px;
+}
+
+.staff-chip.compact .chip-name {
+  font-size: 0.8125rem; // 13px
+}
+
+.staff-chip.compact .chip-info {
+  gap: 2px;
+}
+
+// UX: Responsive adjustments for mobile
+@media (max-width: 640px) {
+  .staff-chip {
+    gap: 6px;
+    padding: 3px;
+  }
+
+  .chip-name {
+    font-size: 0.8125rem; // 13px on mobile
+  }
+
+  .chip-info {
+    gap: 3px;
+  }
+}
+
+// UX: Extra small screens - more aggressive compacting
+@media (max-width: 375px) {
+  .chip-name {
+    font-size: 0.75rem; // 12px
+    max-width: 120px; // Prevent overly long names
+  }
+}

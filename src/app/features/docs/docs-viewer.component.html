@@ -1,0 +1,12 @@
+<nav class="breadcrumb" *ngIf="path().length">
+  <span class="crumb">Docs</span>
+  <ng-container *ngFor="let p of path(); let last = last">
+    <span class="sep">/</span>
+    <span class="crumb" [class.active]="last">{{ p.title }}</span>
+  </ng-container>
+</nav>
+<div class="doc-body" [innerHTML]="html()"></div>
+<div class="nav-pager">
+  <button *ngIf="prevSlug()" (click)="goPrev()">← Trước</button>
+  <button *ngIf="nextSlug()" (click)="goNext()">Sau →</button>
+</div>

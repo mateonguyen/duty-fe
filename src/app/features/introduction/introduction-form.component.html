@@ -1,0 +1,138 @@
+<main class="page">
+  <header class="heading">
+    <div class="heading-title">
+      <span class="document-mark"><i class="pi pi-id-card" aria-hidden="true"></i> GIẤY GIỚI THIỆU</span>
+      <h1>{{ groupId || editId ? 'Chỉnh sửa giấy giới thiệu' : 'Tạo bộ giấy giới thiệu' }}</h1>
+    </div>
+    <div class="buttons">
+      <a class="back-button" routerLink="/introduction-letters"><i class="pi pi-arrow-left"></i> Quay lại</a>
+      <button type="button" class="secondary" [disabled]="!hasPreview()" (click)="openPreview()"><i class="pi pi-external-link"></i> Mở bản in</button>
+      <button type="button" class="secondary" [disabled]="busy() || !valid()" (click)="save('draft')">{{ groupId || editId ? 'Lưu thay đổi' : 'Lưu nháp' }}</button>
+      <button type="button" class="primary" [disabled]="busy() || !valid() || !canTakeNumberOnForm()" (click)="save('issue-print')"><i class="pi pi-check"></i> Lấy số và in</button>
+    </div>
+  </header>
+
+  @if (error()) { <div class="error" role="alert">{{ error() }}</div> }
+
+  <div class="workspace">
+    <section class="preview-panel" aria-label="Xem trước giấy giới thiệu">
+      <div class="preview-header">
+        <div><strong>Xem trước</strong><span>Cuống lưu bên trái · giấy giao cán bộ bên phải</span></div>
+        <span class="preview-count">{{ people().length }} giấy</span>
+      </div>
+      @if (people().length > 1) {
+        <div class="preview-person">
+          <label for="preview-person-select">Giấy đang xem</label>
+          <select id="preview-person-select" [ngModel]="previewPersonUsername()" (ngModelChange)="setPreviewPerson($event)">
+            @for (p of orderedPeople(); track p.username) { <option [value]="p.username">{{ p.displayNameWithRank || p.fullName }}</option> }
+          </select>
+        </div>
+      } @else if (people().length === 1) {
+        <div class="preview-person-name">{{ previewPersonName() }}</div>
+      }
+      <div class="preview-body">
+        @if (previewConfig() && !previewLoading()) { <app-file-view class="preview-viewer" [fileConfig]="previewConfig()" [showHeader]="false" [allowPrint]="false" [allowDownload]="false" [visible]="true"></app-file-view> }
+        @if (previewLoading()) { <div class="preview-state preview-overlay"><i class="pi pi-spin pi-spinner"></i><strong>Đang cập nhật bản in…</strong></div> }
+        @else if (previewError()) { <div class="preview-state"><i class="pi pi-exclamation-circle"></i><strong>Chưa tạo được bản xem trước</strong><span>{{ previewError() }}</span><button type="button" class="secondary" (click)="queuePreview()">Thử lại</button></div> }
+        @else if (!previewConfig()) { <div class="preview-state"><i class="pi pi-file-pdf"></i><strong>Bản in sẽ xuất hiện ở đây</strong><span>Chọn cán bộ và người cấp giấy để xem mẫu giấy. Nội dung sẽ cập nhật khi bạn nhập.</span></div> }
+      </div>
+    </section>
+
+    <div class="form-panel">
+      <section class="card people-card">
+        <button type="button" class="section-head" [attr.aria-expanded]="sections[1]" (click)="toggleSection(1)"><span class="step">1</span><strong>Cán bộ được giới thiệu</strong><span class="count">{{ people().length }} người</span><i class="pi" [class.pi-minus]="sections[1]" [class.pi-plus]="!sections[1]"></i></button>
+        @if (sections[1]) { <div class="section-body">
+          <div #treePickerShell class="tree-picker-shell">
+            <div class="tree-search-row"><i class="pi pi-search" aria-hidden="true"></i><input aria-label="Tìm đơn vị hoặc cán bộ" placeholder="Tìm đơn vị hoặc cán bộ để chọn..." [(ngModel)]="treeQuery" (focus)="openTreeDropdown()" (ngModelChange)="filterStaffTree($event)" (keydown.escape)="treeDropdownOpen = false" /><button type="button" [attr.aria-expanded]="treeDropdownOpen" aria-label="Mở danh sách cán bộ" (click)="toggleTreeDropdown()"><i class="pi" [class.pi-chevron-down]="!treeDropdownOpen" [class.pi-chevron-up]="treeDropdownOpen"></i></button></div>
+            <div class="tree-dropdown" [hidden]="!treeDropdownOpen">
+              <div class="tree-toolbar"><span>Tích nhiều người hoặc cả đơn vị</span><div>@if (!editId) { <button type="button" (click)="selectAllPeople()" [disabled]="staffTreeLoading() || !staffTree().length">Chọn tất cả</button> }<button type="button" (click)="clearPeople()" [disabled]="!people().length">Bỏ chọn</button></div></div>
+            @if (staffTreeLoading()) { <p class="tree-message">Đang tải cây đơn vị và cán bộ…</p> }
+            @else if (staffTreeError()) { <p class="tree-message error-text">{{ staffTreeError() }} <button type="button" (click)="loadStaffTree()">Thử lại</button></p> }
+            @else if (treeQuery.trim()) {
+              <div class="staff-results-scroll">
+                @if (searchLeaders().length) { <div class="staff-results-heading">Lãnh đạo</div>
+                  @for (person of searchLeaders(); track person.username) {
+                    <label class="staff-result-card leader" [class.selected]="isPersonSelected(person.username)"><input [type]="editId ? 'radio' : 'checkbox'" name="introduction-person" [checked]="isPersonSelected(person.username)" (change)="toggleSearchPerson(person.username)" /><span class="tree-avatar"><i class="pi pi-user"></i></span><span class="tree-person-copy"><strong>{{ person.displayNameWithRank || person.fullName }} <i class="pi pi-star-fill leader-star" aria-label="Lãnh đạo"></i></strong><small>{{ person.positionTitle || 'Cán bộ' }} · {{ person.unitName }}</small></span></label>
+                  }
+                }
+                @if (searchStaff().length) { <div class="staff-results-heading">Cán bộ</div>
+                  @for (person of searchStaff(); track person.username) {
+                    <label class="staff-result-card" [class.selected]="isPersonSelected(person.username)"><input [type]="editId ? 'radio' : 'checkbox'" name="introduction-person" [checked]="isPersonSelected(person.username)" (change)="toggleSearchPerson(person.username)" /><span class="tree-avatar"><i class="pi pi-user"></i></span><span class="tree-person-copy"><strong>{{ person.displayNameWithRank || person.fullName }}</strong><small>{{ person.positionTitle || 'Cán bộ' }} · {{ person.unitName }}</small></span></label>
+                  }
+                }
+                @if (!searchResults().length) { <p class="tree-message">Không tìm thấy cán bộ phù hợp.</p> }
+              </div>
+            }
+            @else { <p-tree class="staff-tree" [value]="staffTree()" [selectionMode]="editId ? 'single' : 'checkbox'" [selection]="selectedTreeNodes" (onNodeSelect)="onTreeNodeChange($event.node, true)" (onNodeUnselect)="onTreeNodeChange($event.node, false)" [propagateSelectionDown]="true" [propagateSelectionUp]="true" [scrollHeight]="'330px'">
+              <ng-template pTemplate="default" let-node>
+                @if (node.data?.kind === 'person') { <span class="tree-node-person"><span class="tree-avatar"><i class="pi pi-user"></i></span><span class="tree-person-copy"><strong>{{ node.data.person.displayNameWithRank || node.data.person.fullName }} @if (node.data.person.isLeader) { <i class="pi pi-star-fill leader-star" aria-label="Lãnh đạo"></i> }</strong><small>{{ node.data.person.positionTitle || 'Cán bộ' }} · {{ node.data.person.unitName }}</small></span></span> }
+                @else { <span class="tree-node-unit">{{ node.label }}</span> }
+              </ng-template>
+            </p-tree> }
+            </div>
+          </div>
+          @if (people().length > 1000) { <p class="selection-limit">Một bộ giấy nhận tối đa 1000 cán bộ. Hãy bỏ bớt người trước khi lưu.</p> }
+          <div class="selected-person-list">@for (group of selectedGroups(); track group.key) {
+            <div class="selected-unit"><i class="pi pi-sitemap" aria-hidden="true"></i><strong>{{ group.label }}</strong><span>{{ group.people.length }} người</span></div>
+            @for (p of group.people; track p.username) {
+            <div class="selected-person" [class.active]="previewPersonUsername() === p.username">
+              <button type="button" class="selected-person-info" (click)="setPreviewPerson(p.username)" [attr.aria-label]="'Xem giấy của ' + p.fullName"><strong>{{ p.displayNameWithRank || p.fullName }}</strong><small>{{ p.positionTitle || 'Cán bộ' }} · {{ p.unitName }}</small></button>
+              <div class="card-signer-wrap"><button type="button" class="card-signer-button" [attr.aria-label]="'Chọn người cấp giấy cho ' + p.fullName" (click)="toggleCardSigner(p.username)"><span><strong>{{ signerFor(p.username)?.name || 'Chọn người cấp giấy' }}</strong><small>{{ signerFor(p.username)?.detail || 'Chưa có chức vụ' }}</small></span><i class="pi pi-chevron-down"></i></button></div>
+              <button type="button" class="person-remove" [attr.aria-label]="'Bỏ ' + p.fullName" (click)="removePerson(p.username)"><i class="pi pi-trash"></i></button>
+              @if (cardSignerFor === p.username) { <div class="card-signer-menu"><input aria-label="Tìm người cấp giấy" placeholder="Tìm người cấp giấy..." [(ngModel)]="cardSignerQuery" (ngModelChange)="findCardSigner($event)" />
+                  @if (form.signerUsername) { <button type="button" class="card-signer-option" (click)="useBulkSigner(p.username)">Dùng người cấp chung: {{ signerName }}</button> }
+                  @for (signer of cardSignerOptions(); track signer.username) { <button type="button" class="card-signer-option" (click)="chooseCardSigner(p.username, signer)"><strong>{{ signer.fullName }}</strong><small>{{ signer.positionTitle }} · {{ signer.unitName }}</small></button> }
+                </div> }
+            </div>
+            }
+          } @empty { <div class="selected-empty"><i class="pi pi-inbox"></i><span>Chưa có cán bộ nào được chọn</span></div> }</div>
+        </div> }
+      </section>
+
+      <section class="card signer-card">
+        <button type="button" class="section-head" [attr.aria-expanded]="sections[2]" (click)="toggleSection(2)"><span class="step">2</span><strong>Áp dụng người cấp giấy</strong><i class="pi" [class.pi-minus]="sections[2]" [class.pi-plus]="!sections[2]"></i></button>
+        @if (sections[2]) { <div class="section-body">
+          <div class="bulk-signer-row">
+            <div class="signer-combobox" #signerPickerShell>
+              <button type="button" class="signer-combobox-trigger" aria-label="Chọn người cấp giấy áp dụng" aria-controls="signer-combobox-list" [attr.aria-expanded]="signerDropdownOpen" (click)="toggleSignerDropdown()">
+                <i class="pi pi-verified" aria-hidden="true"></i>
+                <span><strong>{{ signerDisplayName() || 'Chọn người cấp giấy' }}</strong><small>{{ signerDetail || 'Chưa có chức vụ' }}</small></span>
+                <i class="pi" [class.pi-chevron-down]="!signerDropdownOpen" [class.pi-chevron-up]="signerDropdownOpen" aria-hidden="true"></i>
+              </button>
+              @if (signerDropdownOpen) {
+                <div id="signer-combobox-list" class="signer-combobox-panel" [class.open-up]="signerDropdownUp">
+                  <div class="signer-combobox-search"><i class="pi pi-search" aria-hidden="true"></i><input #signerSearchInput aria-label="Tìm người cấp giấy" placeholder="Tìm người cấp giấy..." [(ngModel)]="signerQuery" (ngModelChange)="findSigner($event)" (keydown.escape)="signerDropdownOpen = false" /></div>
+                  <div class="signer-combobox-options">
+                    @if (signerOptions().length) { <div class="signer-combobox-heading">Lãnh đạo Cục</div> }
+                    @for (p of signerOptions(); track p.username) { <button type="button" class="signer-combobox-option" [class.selected]="form.signerUsername === p.username" (click)="selectSigner(p)"><span><strong>{{ p.displayNameWithRank || p.fullName }}</strong><small>{{ p.positionTitle }} · {{ p.unitName }}</small></span>@if (form.signerUsername === p.username) { <i class="pi pi-check" aria-hidden="true"></i> }</button> }
+                    @if (!signerOptions().length) { <p class="signer-combobox-empty">Không tìm thấy lãnh đạo Cục phù hợp.</p> }
+                  </div>
+                </div>
+              }
+            </div>
+            @if (signerName && hasSignerOverrides()) { <button type="button" class="apply-all-button" (click)="applySignerToAll()">Áp dụng tất cả</button> }
+          </div>
+        </div> }
+      </section>
+
+      <section class="card">
+        <button type="button" class="section-head" [attr.aria-expanded]="sections[3]" (click)="toggleSection(3)"><span class="step">3</span><strong>Nội dung giấy</strong><i class="pi" [class.pi-minus]="sections[3]" [class.pi-plus]="!sections[3]"></i></button>
+        @if (sections[3]) { <div class="section-body fields">
+          <label><span class="field-label">Kính gửi</span><input [(ngModel)]="form.recipientAgency" (ngModelChange)="queuePreview()" maxlength="150" placeholder="Để trống nếu viết tay trên giấy" /></label>
+          <label><span class="field-label">Được cử đến <span class="required">*</span></span><input [(ngModel)]="form.destination" (ngModelChange)="queuePreview()" maxlength="150" placeholder="Cơ quan, địa điểm đến" /></label>
+          <label><span class="field-label">Để <span class="required">*</span></span><textarea [(ngModel)]="form.purpose" (ngModelChange)="queuePreview()" maxlength="240" rows="3" placeholder="Nội dung công việc"></textarea></label>
+        </div> }
+      </section>
+
+      <section class="card">
+        <button type="button" class="section-head" [attr.aria-expanded]="sections[4]" (click)="toggleSection(4)"><span class="step">4</span><strong>Ngày cấp và hiệu lực</strong><i class="pi" [class.pi-minus]="sections[4]" [class.pi-plus]="!sections[4]"></i></button>
+        @if (sections[4]) { <div class="section-body fields dates">
+          <label><span class="field-label">Ngày cấp <span class="required">*</span></span><p-datepicker [(ngModel)]="issueDate" (ngModelChange)="queuePreview()" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" /></label>
+          <label>Có giá trị đến hết ngày<p-datepicker [(ngModel)]="validUntil" (ngModelChange)="queuePreview()" [showIcon]="true" [showClear]="true" dateFormat="dd/mm/yy" appendTo="body" /></label>
+          <label>Địa điểm cấp<input [(ngModel)]="form.issuePlace" (ngModelChange)="queuePreview()" maxlength="100" placeholder="Hà Nội" /></label>
+        </div> }
+      </section>
+      <p class="form-note">Mỗi cán bộ nhận một giấy có số riêng. Khi sửa bộ, bỏ cán bộ khỏi danh sách sẽ xóa giấy của cán bộ đó trong bộ.</p>
+    </div>
+  </div>
+</main>

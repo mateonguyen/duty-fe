@@ -1,12 +1,17 @@
 <header
-  class="bg-green-800 text-white sticky top-0 z-50 shadow-md"
+  id="app-navbar"
+  class="bg-green-800 text-white sticky top-0 shadow-md"
   *ngIf="auth.isAuthenticated()"
+  style="z-index: var(--z-navbar); left: 0; right: 0; width: 100%; background: var(--ui-primary)"
 >
-  <div class="max-w-screen mx-auto flex items-center gap-3 px-4 h-12">
+  <div class="app-navbar-inner max-w-screen mx-auto flex items-center gap-3 px-4 h-12">
     <!-- Logo / Home -->
+    <a routerLink="/" class="app-brand" title="Về trang chủ" aria-label="Công an nhân dân - về trang chủ">
+      <img src="cand-emblem.svg" alt="Công an nhân dân" width="40" height="34" />
+    </a>
     <a
       routerLink="/"
-      class="flex items-center gap-2 font-medium px-3 py-1.5 rounded-md hover:bg-white/20 transition-all"
+      class="app-home-link flex items-center gap-2 font-medium px-3 py-1.5 rounded-md hover:bg-white/20 transition-all"
       routerLinkActive="app-home-active"
       [routerLinkActiveOptions]="{ exact: true }"
     >
@@ -26,68 +31,210 @@
     <div class="flex-1"></div>
 
     <!-- Search mini on header -->
-    <span class="p-input-icon-left hidden md:inline-flex search-wrapper">
+    <div class="p-input-icon-left hidden md:inline-flex search-wrapper">
       <i class="pi pi-search"></i>
       <input
         pInputText
         type="text"
-        placeholder="Tìm kiếm"
+        placeholder="Tìm chức năng..."
+        aria-label="Tìm chức năng trong hệ thống"
+        aria-controls="menu-search-results"
+        [attr.aria-expanded]="menuSearchOpen() && !!menuSearch()"
+        autocomplete="off"
+        [value]="menuSearch()"
+        (input)="onMenuSearchInput($event)"
+        (focus)="menuSearchOpen.set(true)"
+        (keydown)="onMenuSearchKeydown($event)"
         class="h-8 text-sm rounded-md w-64"
       />
-    </span>
+      <div id="menu-search-results" class="menu-search-results" *ngIf="menuSearchOpen() && menuSearch().trim()" role="listbox" aria-label="Kết quả tìm chức năng">
+        <button type="button" role="option" class="menu-search-result" *ngFor="let result of menuSearchResults(); let i = index" [class.menu-search-result--focused]="i === menuSearchIndex()" [attr.aria-selected]="i === menuSearchIndex()" (click)="openMenuSearchResult(result.url)">
+          <i [class]="result.icon || 'pi pi-arrow-right'" aria-hidden="true"></i>
+          <span>{{ result.label }}<small>{{ result.group }}</small></span>
+        </button>
+        <div class="menu-search-empty" *ngIf="!menuSearchResults().length">Không tìm thấy chức năng phù hợp</div>
+      </div>
+    </div>
 
     <!-- Icons -->
     <div
-      *ngIf="auth.isAuthenticated()"
+      *ngIf="auth.isAuthenticated() && scopeDisplay() !== '—'"
       class="text-sm font-medium mr-4 flex items-center gap-1"
       title="Scope đang chọn"
     >
       <i class="pi pi-map-marker"></i>
-      <span>{{ activeScopeName() || "No scope" }}</span>
+      <span>{{ scopeDisplay() }}</span>
     </div>
-    <button
-      pButton
-      type="button"
-      icon="pi pi-bell"
-      class="p-button-text p-button-rounded text-white"
-      pTooltip="Thông báo"
-    ></button>
 
-    <!-- User menu -->
-    <p-menu
-      #userMenu
-      [popup]="true"
-      [model]="userItems"
-      (onShow)="isUserMenuOpen.set(true)"
-      (onHide)="isUserMenuOpen.set(false)"
-    ></p-menu>
-    <button
-      *ngIf="auth.isAuthenticated()"
-      type="button"
-      class="flex items-center gap-2 user-menu-btn px-3 py-1.5 rounded-lg transition-all"
-      (click)="userMenu.toggle($event)"
-    >
-      <p-avatar label="A" shape="circle" styleClass="bg-white/10"></p-avatar>
-      <span class="hidden md:inline">{{
-        auth.displayName() || auth.username() || "Admin H05"
-      }}</span>
-      <i
-        class="pi text-sm transition-transform duration-300"
-        [ngClass]="
-          (chevronDownWhenOpen ? isUserMenuOpen() : !isUserMenuOpen())
-            ? 'pi-chevron-down'
-            : 'pi-chevron-up'
+    <!-- Notification bell with dropdown -->
+    <div class="notification-bell" *ngIf="auth.isAuthenticated()">
+      <button
+        pButton
+        type="button"
+        icon="pi pi-bell"
+        class="p-button-text p-button-rounded text-white notification-bell__button"
+        [pTooltip]="'Thông báo'"
+        (click)="toggleNotificationMenu()"
+        pBadge
+        [value]="
+          totalUnread() > 0
+            ? totalUnread() > 99
+              ? '99+'
+              : totalUnread().toString()
+            : ''
         "
-      ></i>
-    </button>
+        severity="danger"
+      ></button>
+      <div class="notification-bell__dropdown" *ngIf="isNotificationMenuOpen()">
+        <div class="notification-bell__header">
+          <span class="font-semibold">Thông báo</span>
+          <button
+            pButton
+            *ngIf="totalUnread() > 0 && !notificationError()"
+            label="Đánh dấu đã đọc tất cả"
+            class="p-button-text p-button-sm"
+            (click)="markAllNotificationsAsRead()"
+          ></button>
+        </div>
+        <div class="notification-bell__content">
+          <p *ngIf="notificationError()" class="ui-notice ui-notice--error" role="alert">{{ notificationError() }}</p>
+          <ng-container *ngIf="!loadingNotifications() && !notificationError(); else bellLoading">
+            <ng-container
+              *ngIf="notifications().length > 0; else noNotifications"
+            >
+              <div
+                *ngFor="let n of notifications()"
+                class="notification-bell__item"
+                [class.notification-bell__item--unread]="!n.isRead"
+                (click)="onNotificationClick(n)"
+              >
+                <i
+                  class="pi notification-bell__item-icon"
+                  [ngClass]="
+                    n.type === 'schedule'
+                      ? 'pi-calendar'
+                      : n.type === 'permission'
+                        ? 'pi-key'
+                        : 'pi-megaphone'
+                  "
+                ></i>
+                <div class="notification-bell__item-content">
+                  <div class="notification-bell__item-title">{{ n.title }}</div>
+                  <div class="notification-bell__item-message">
+                    {{ n.message }}
+                  </div>
+                  <div class="notification-bell__item-time">
+                    {{ formatNotificationDate(n.createdAt) }}
+                  </div>
+                </div>
+                <span
+                  *ngIf="!n.isRead"
+                  class="notification-bell__item-dot"
+                ></span>
+              </div>
+            </ng-container>
+            <ng-template #noNotifications>
+              <div class="notification-bell__empty">
+                <i class="pi pi-bell"></i>
+                <div>Không có thông báo mới</div>
+              </div>
+            </ng-template>
+          </ng-container>
+          <ng-template #bellLoading>
+            <div *ngIf="loadingNotifications()" class="notification-bell__loading flex items-center gap-2">
+              <img
+                src="assets/loading.svg"
+                class="app-loader app-loader--tiny"
+                alt="Loading"
+                aria-hidden="true"
+              />
+              <span>Đang tải...</span>
+            </div>
+          </ng-template>
+        </div>
+        <div class="notification-bell__footer">
+          <button
+            type="button"
+            class="notification-bell__view-all"
+            (click)="loadNotifications()"
+          >
+            Làm mới thông báo
+            <i class="pi pi-refresh" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- User menu (custom dropdown anchored relative to avatar) -->
+    <div class="user-menu" *ngIf="auth.isAuthenticated()">
+      <button
+        type="button"
+        class="flex items-center gap-2 user-menu-btn px-3 py-1.5 rounded-lg transition-all"
+        (click)="toggleUserMenu()"
+      >
+        <p-avatar label="A" shape="circle" styleClass="bg-white/10"></p-avatar>
+        <span class="hidden md:inline max-w-[180px] truncate">{{
+          userDisplayName() || ""
+        }}</span>
+        <i
+          class="pi text-sm transition-transform duration-300"
+          [ngClass]="
+            (chevronDownWhenOpen ? isUserMenuOpen() : !isUserMenuOpen())
+              ? 'pi-chevron-down'
+              : 'pi-chevron-up'
+          "
+        ></i>
+      </button>
+      <div class="user-menu__dropdown" *ngIf="isUserMenuOpen()">
+        <!-- User info header in dropdown -->
+        <div class="user-menu__header">
+          <div class="user-menu__header-name">
+            {{ userDisplayName() || "" }}
+          </div>
+          <div class="user-menu__header-position" *ngIf="positionTitle()">
+            {{ positionTitle() }}
+          </div>
+          <div class="user-menu__header-org" *ngIf="orgUnitName()">
+            {{ orgUnitName() }}
+          </div>
+        </div>
+
+        <div class="user-menu__divider"></div>
+
+        <ul class="user-menu__list">
+          <li
+            class="user-menu__item"
+            *ngFor="let item of userItems"
+            (click)="onUserItemClick(item)"
+            [class.user-menu__item--separator]="item.separator"
+          >
+            <ng-container *ngIf="!item.separator">
+              <i class="pi mr-2" [ngClass]="item.icon"></i>
+              <span>{{ item.label }}</span>
+            </ng-container>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </header>
 
 <!-- Content wrapper -->
-<div class="max-w-screen mx-auto">
-  <!-- Thanh tiêu đề trang + toolbar -->
-  <!-- <app-page-toolbar></app-page-toolbar> -->
+<div class="app-shell">
+  <div class="app-content max-w-screen mx-auto" [class.app-content--workspace]="isRosterEditorRoute()">
+    <router-outlet></router-outlet>
+  </div>
+</div>
 
-  <!-- Nội dung page -->
-  <router-outlet></router-outlet>
+<!-- Global small overlay during logout (keeps layout visible) -->
+<div
+  class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center"
+  *ngIf="false"
+>
+  <img
+    src="assets/loading.svg"
+    class="app-loader app-loader--large"
+    alt="Loading"
+    aria-hidden="true"
+  />
 </div>

@@ -1,10 +1,10 @@
 <p-toast></p-toast>
 
-<div class="flex items-center justify-between mb-6">
-  <h3 class="text-lg font-semibold uppercase flex items-center gap-2">
-    <i class="pi pi-cog text-blue-600"></i>
+<div class="ui-page-header">
+  <h1 class="ui-page-title flex items-center gap-2">
+    <i class="pi pi-cog" aria-hidden="true" style="color:var(--ui-primary)"></i>
     Cấu hình hệ thống
-  </h3>
+  </h1>
   <p-button
     label="Lưu cấu hình"
     icon="pi pi-save"
@@ -15,7 +15,7 @@
   ></p-button>
 </div>
 
-<div class="bg-white rounded-lg shadow-sm border p-6">
+<div class="ui-card ui-panel">
   <form class="space-y-6">
     <div
       *ngFor="let config of configs()"
@@ -31,6 +31,7 @@
         <p class="text-xs text-gray-500 mb-2" *ngIf="config.description">
           {{ config.description }}
         </p>
+        <p class="text-xs text-blue-600 mb-2" *ngIf="config.key === 'RootOrgCode'">Đơn vị gốc được thiết lập tại Quản trị → Tổ chức và cán bộ.</p>
 
         <!-- Switch input -->
         <p-inputSwitch
@@ -56,18 +57,26 @@
         <!-- Dropdown for organization -->
         <p-dropdown
           *ngIf="getInputType(config.key) === 'dropdown'"
-          [options]="orgOptions"
+          [options]="filteredOrgOptions"
+          [disabled]="config.key === 'RootOrgCode'"
           [(ngModel)]="config.value"
           [ngModelOptions]="{ standalone: true }"
           optionLabel="displayName"
           optionValue="code"
           [id]="config.key"
           [filter]="true"
-          filterBy="code,name,displayName"
+          [filterValue]="searchText"
+          (onFilter)="onOrgFilter($event)"
+          (onHide)="onDropdownHide()"
           [loading]="orgLoadingFlag"
           placeholder="Chọn đơn vị gốc"
+          [showClear]="true"
+          [virtualScroll]="true"
+          [virtualScrollItemSize]="38"
+          [style]="{ width: '100%' }"
+          [panelStyle]="{ 'min-width': '500px', 'max-width': '700px' }"
           class="w-full"
-          (onFilter)="onOrgFilter($event)"
+          appendTo="body"
         ></p-dropdown>
 
         <!-- Text input -->

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -18,6 +18,7 @@ import { DutyApiService } from '../../../../core/api/duty-api.service';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { AuthService } from '../../../../core/auth/auth.service';
 
 @Component({
   standalone: true,
@@ -42,6 +43,16 @@ export class DutyRolesComponent implements OnInit {
   loading = false;
   selected: DutyRoleReadDto[] = [];
 
+  // Reactive permission checks for bulk actions
+  // These will update when auth state changes
+  get canBulkDelete(): boolean {
+    return this.hasPermission('catalog.delete');
+  }
+
+  get canBulkEdit(): boolean {
+    return this.hasPermission('catalog.edit');
+  }
+
   visible = false;
   editId: number | null = null;
   scopes: { label: string; value: DutyRoleScope }[] = [
@@ -57,7 +68,16 @@ export class DutyRolesComponent implements OnInit {
     active: true,
   };
 
-  constructor(private api: DutyApiService, private msg: MessageService) {}
+  constructor(
+    private api: DutyApiService,
+    private msg: MessageService,
+    private auth: AuthService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  private hasPermission(permission: string): boolean {
+    return this.auth.hasPermission(permission);
+  }
 
   async ngOnInit() {
     await this.load();

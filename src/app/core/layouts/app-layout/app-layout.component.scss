@@ -1,17 +1,43 @@
 /* ---- Menubar tweaks ---- */
+:host {
+  display: block;
+}
+.app-navbar-inner { height: var(--navbar-height, 48px); }
+.app-brand { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42px; height: 40px; border-radius: 7px; }
+.app-brand:hover { background: rgba(255, 255, 255, 0.12); }
+.app-brand:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.app-brand img { display: block; width: 40px; height: 34px; object-fit: contain; }
+.app-home-link { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 600px) { .app-navbar-inner { gap: 6px; padding: 0 12px; } .app-navbar-inner > nav { margin-left: 0; } }
+
+.app-shell {
+  height: calc(100vh - var(--app-navbar-height, 48px));
+  overflow: hidden;
+  background: var(--ui-canvas);
+}
+
+.app-content {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+}
+.app-content--workspace { width: 100%; max-width: none; padding: 0; overflow: hidden; }
+
 :host ::ng-deep .p-menubar {
   background: transparent;
   border: 0;
   padding: 0;
+  z-index: var(--z-navbar);
 }
 
 /* Home pill active to match menubar active style */
 :host header a.app-home-active {
-  background: #fff;
-  color: #1f2937 !important; /* slate-800 */
+  background: #e9f5ec;
+  color: #07583a !important;
 }
 :host header a.app-home-active .pi {
-  color: #1f2937 !important;
+  color: #07583a !important;
 }
 
 /* khoảng cách giữa các mục top-level */
@@ -196,6 +222,7 @@
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border-radius: 8px;
   padding: 4px;
+  z-index: calc(var(--z-navbar) + 10) !important; /* keep above navbar items */
 }
 :host ::ng-deep .p-menubar .p-submenu-list .p-menuitem .p-menuitem-content {
   color: #1f2937; /* slate-800 */
@@ -328,6 +355,74 @@
   z-index: 1;
 }
 
+/* An open submenu is distinct from the page currently being viewed. */
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.p-menubar-item-active:not(.app-menu-active) > .p-menubar-item-content,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.p-menubar-item-active:not(.app-menu-active) > .p-menubar-item-content .p-menuitem-link {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff !important;
+  box-shadow: none;
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.p-menubar-item-active:not(.app-menu-active) .p-menuitem-icon,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.p-menubar-item-active:not(.app-menu-active) .p-menuitem-text {
+  color: #fff !important;
+}
+
+.search-wrapper { position: relative; }
+.menu-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, 90vw);
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #d9e5dc;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(20, 55, 34, 0.18);
+  color: #173b28;
+  z-index: calc(var(--z-navbar) + 15);
+}
+.menu-search-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 47px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #173b28;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-search-result:hover, .menu-search-result--focused { background: #eaf5ed; }
+.menu-search-result:focus-visible { outline: 2px solid #087445; outline-offset: -2px; }
+.menu-search-result > i { flex: none; color: #087445; font-size: 14px; }
+.menu-search-result > span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 600; }
+.menu-search-result small { color: #6f8275; font-size: 11px; font-weight: 400; }
+.menu-search-empty { padding: 14px 10px; color: #6f8275; font-size: 12px; }
+
+:host ::ng-deep .p-menubar .p-menubar-submenu {
+  padding: 5px;
+  border: 1px solid #d9e5dc;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(20, 55, 34, 0.16);
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item-content {
+  border-radius: 6px;
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item.app-menu-active > .p-menubar-item-content {
+  background: #eaf5ed;
+  color: #075b39;
+  font-weight: 650;
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item.app-menu-active > .p-menubar-item-content .p-menubar-item-icon {
+  color: #087445;
+}
+
 /* User dropdown menu (p-menu popup) styling */
 :host ::ng-deep .p-menu {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -398,4 +493,331 @@
   ::ng-deep .p-avatar {
     transition: all 0.3s ease;
   }
+}
+
+/* =====================================================================
+   Custom User Menu Dropdown (anchors to avatar; scroll-safe)
+   ===================================================================== */
+.user-menu {
+  position: relative; /* anchor for absolute dropdown */
+  display: flex;
+  align-items: center;
+}
+
+.user-menu__dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  min-width: 260px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  z-index: calc(var(--z-navbar) + 5);
+  padding: 0;
+  border: 1px solid #e5e7eb;
+}
+
+.user-menu__header {
+  padding: 16px 16px 12px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.user-menu__header-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.user-menu__header-position {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 500;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.user-menu__leader-star {
+  /* Removed: leader star no longer used */
+}
+
+.user-menu__header-org {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.user-menu__divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 8px 0;
+}
+
+.user-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.user-menu__item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  color: #1f2937;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.user-menu__item--separator {
+  height: 1px;
+  margin: 6px 12px;
+  background: #e5e7eb;
+  padding: 0;
+  cursor: default;
+}
+
+.user-menu__item:not(.user-menu__item--separator):hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  transform: translateX(4px);
+}
+
+.user-menu__item:not(.user-menu__item--separator):active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateX(2px) scale(0.98);
+}
+
+/* ===== Notification bell dropdown: anchored relative to bell icon ===== */
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.notification-bell__button {
+  position: relative;
+}
+
+.notification-bell__dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  width: 420px;
+  max-width: 90vw;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  z-index: calc(var(--z-navbar) + 30);
+  border: 1px solid #e5e7eb;
+}
+
+.notification-bell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-size: 16px;
+}
+
+.notification-bell__content {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.notification-bell__item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f3f4f6;
+  position: relative;
+
+  &--unread {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+  }
+
+  &:hover {
+    background: #f8fafc !important;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.notification-bell__item-icon {
+  color: #64748b;
+  font-size: 20px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.notification-bell__item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-bell__item-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.notification-bell__item-message {
+  font-size: 13px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+
+.notification-bell__item-time {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+.notification-bell__item-dot {
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.notification-bell__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  color: #94a3b8;
+  text-align: center;
+
+  i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+
+  div {
+    font-size: 14px;
+  }
+}
+
+.notification-bell__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 20px;
+  color: #64748b;
+  font-size: 14px;
+
+  i {
+    font-size: 24px;
+  }
+}
+
+.notification-bell__footer {
+  padding: 12px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+.notification-bell__view-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+/* PrimeNG Menubar v19: keep the route active state separate from an open submenu. */
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content {
+  background: transparent;
+  box-shadow: none;
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content:hover,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.p-menubar-item-active:not(.app-menu-active) > .p-menubar-item-content {
+  background: rgba(255, 255, 255, 0.16);
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content .p-menubar-item-link,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content .p-menubar-item-label,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content .p-menubar-item-icon,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item > .p-menubar-item-content .p-menubar-submenu-icon {
+  color: #fff !important;
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content {
+  background: #e9f5ec !important;
+  box-shadow: inset 0 0 0 1px #c7e1cf;
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content .p-menubar-item-link,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content .p-menubar-item-label,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content .p-menubar-item-icon,
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content .p-menubar-submenu-icon {
+  color: #07583a !important;
+}
+
+/* PrimeNG applies routerLinkActive to the submenu anchor, not its menu item. */
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item-link-active {
+  background: #e9f5ec !important;
+  border-radius: 6px;
+  box-shadow: inset 3px 0 #087445;
+  color: #07583a !important;
+  font-weight: 650;
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item-link-active .p-menubar-item-label,
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item-link-active .p-menubar-item-icon {
+  color: #07583a !important;
+}
+
+/* Keep the selected section and its icon stable while hovering or opening it. */
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content:is(:hover, :focus-within),
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active.p-menubar-item-active > .p-menubar-item-content {
+  background: #e9f5ec !important;
+}
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active > .p-menubar-item-content:is(:hover, :focus-within) :is(.p-menubar-item-link, .p-menubar-item-label, .p-menubar-item-icon, .p-menubar-submenu-icon),
+:host ::ng-deep .p-menubar .p-menubar-root-list > .p-menubar-item.app-menu-active.p-menubar-item-active > .p-menubar-item-content :is(.p-menubar-item-link, .p-menubar-item-label, .p-menubar-item-icon, .p-menubar-submenu-icon) {
+  color: #07583a !important;
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item.app-menu-active > .p-menubar-item-content,
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item.app-menu-active > .p-menubar-item-content:hover {
+  background: #e9f5ec !important;
+  box-shadow: inset 3px 0 #087445;
+}
+:host ::ng-deep .p-menubar .p-menubar-submenu .p-menubar-item.app-menu-active > .p-menubar-item-content :is(.p-menubar-item-link, .p-menubar-item-label, .p-menubar-item-icon) {
+  color: #07583a !important;
 }

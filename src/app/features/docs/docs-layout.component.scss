@@ -1,0 +1,95 @@
+@import "./docs-theme.scss";
+
+.docs-wrapper {
+  display: flex;
+  min-height: calc(100vh - 60px);
+  background: var(--docs-bg-page);
+}
+
+.docs-sidebar {
+  width: 270px;
+  border-right: 1px solid var(--docs-border);
+  padding: 0;
+  overflow-y: auto;
+  background: var(--docs-bg-sidebar);
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.02);
+}
+
+.sidebar-header {
+  padding: 1.5rem 1rem 1rem;
+  border-bottom: 1px solid var(--docs-border-light);
+  margin-bottom: 1rem;
+
+  .sidebar-title {
+    font-size: 1.0625rem;
+    font-weight: var(--docs-font-weight-semibold);
+    color: var(--docs-primary-dark);
+    margin: 0 0 0.25rem 0;
+  }
+
+  .sidebar-subtitle {
+    font-size: var(--docs-font-size-xs);
+    color: var(--docs-text-tertiary);
+    margin: 0;
+  }
+}
+
+.search-box {
+  margin: 0 1rem 1.25rem;
+  position: relative;
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--docs-text-muted);
+    font-size: 0.875rem;
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.5rem 0.875rem 0.5rem 2.25rem;
+    border: 1px solid var(--docs-border-dark);
+    border-radius: var(--docs-radius-sm);
+    font-size: var(--docs-font-size-sm);
+    background: var(--docs-bg-input);
+    color: var(--docs-text-primary);
+    transition: border-color var(--docs-transition-base),
+      background var(--docs-transition-base);
+
+    &:focus {
+      outline: none;
+      border-color: var(--docs-primary);
+      background: var(--docs-bg-card);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    &::placeholder {
+      color: var(--docs-text-muted);
+    }
+  }
+}
+
+.docs-content {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .docs-wrapper {
+    flex-direction: column;
+  }
+  .docs-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .docs-content {
+    padding: 1rem 1.25rem;
+  }
+}

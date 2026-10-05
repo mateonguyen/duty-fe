@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-forbidden',
@@ -9,8 +10,10 @@ import { RouterLink } from '@angular/router';
   template: `
     <div class="forbidden-wrapper">
       <h1>403 - Không có quyền truy cập</h1>
-      <p>Bạn không đủ quyền để truy cập chức năng hoặc trang này.</p>
-      <a routerLink="/" class="back-link">Về trang chủ</a>
+      <p>{{ auth.sessionError() || 'Bạn không đủ quyền để truy cập chức năng hoặc trang này.' }}</p>
+      <p *ngIf="auth.sessionState() === 'forbidden'">Nhờ quản trị thêm tài khoản SSO vào danh mục cán bộ và cấp quyền phù hợp.</p>
+      <a *ngIf="auth.isAuthenticated()" routerLink="/" class="back-link">Về trang chủ</a>
+      <button *ngIf="auth.sessionState() === 'forbidden'" (click)="auth.logout()">Đăng xuất / đổi tài khoản</button>
     </div>
   `,
   styles: [
@@ -38,4 +41,4 @@ import { RouterLink } from '@angular/router';
     `,
   ],
 })
-export class ForbiddenComponent {}
+export class ForbiddenComponent { public auth = inject(AuthService); }

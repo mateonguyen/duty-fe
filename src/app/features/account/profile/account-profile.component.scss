@@ -1,0 +1,8 @@
+/* Scoped styling for account profile */
+:host {
+  display: block;
+}
+
+:host ::ng-deep input[pinputtext][readonly] {
+  cursor: default;
+}

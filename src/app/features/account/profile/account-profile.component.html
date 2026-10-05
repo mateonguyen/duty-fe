@@ -1,0 +1,143 @@
+<p-toast></p-toast>
+<div class="max-w-screen mx-auto p-4 md:p-6">
+  <!-- Loading Spinner -->
+  <div *ngIf="loading()" class="flex justify-center items-center py-10">
+    <p-progressSpinner styleClass="w-16 h-16"></p-progressSpinner>
+  </div>
+
+  <!-- Profile Content -->
+  <div
+    *ngIf="!loading()"
+    class="home-card rounded-xl bg-white shadow p-5 md:p-6"
+  >
+    <div
+      class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6"
+    >
+      <div class="flex items-center gap-3">
+        <p-avatar
+          [label]="initials"
+          shape="circle"
+          styleClass="bg-emerald-600 text-white"
+        ></p-avatar>
+        <div>
+          <div class="text-lg font-semibold text-slate-800">
+            {{ profile()?.fullName }}
+          </div>
+          <div class="text-slate-500 text-sm">{{ profile()?.username }}</div>
+        </div>
+      </div>
+    </div>
+
+    <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Row 1 -->
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Họ tên</label>
+        <input
+          pInputText
+          [value]="profile()?.fullName"
+          readonly
+          class="bg-slate-50"
+        />
+      </div>
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Tên đăng nhập</label>
+        <input
+          pInputText
+          [value]="profile()?.username"
+          readonly
+          class="bg-slate-50 text-slate-500"
+        />
+      </div>
+
+      <!-- Row 2 -->
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Email</label>
+        <input
+          pInputText
+          [value]="profile()?.email"
+          readonly
+          class="bg-slate-50"
+        />
+      </div>
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Số điện thoại</label>
+        <input
+          pInputText
+          formControlName="phoneNumber"
+          placeholder="Nhập số điện thoại"
+        />
+        <small
+          class="text-red-500 mt-1"
+          *ngIf="
+            form.controls.phoneNumber.invalid &&
+            form.controls.phoneNumber.touched
+          "
+        >
+          Số điện thoại không hợp lệ (10–11 chữ số)
+        </small>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Đơn vị</label>
+        <input
+          pInputText
+          [value]="profile()?.orgUnitName"
+          readonly
+          class="bg-slate-50"
+        />
+      </div>
+      <div class="flex flex-col">
+        <label class="text-sm text-slate-600 mb-1">Chức danh / Vị trí</label>
+        <input
+          pInputText
+          [value]="profile()?.positionTitle"
+          readonly
+          class="bg-slate-50"
+        />
+      </div>
+
+      <!-- Row 4: Roles -->
+      <div class="md:col-span-2">
+        <label class="text-sm text-slate-600 mb-1 block">Vai trò</label>
+        <div class="flex flex-wrap gap-2">
+          <p-tag
+            *ngFor="let r of profile()?.roles"
+            [value]="formatRole(r)"
+            severity="success"
+          ></p-tag>
+        </div>
+        <small
+          class="text-slate-500 mt-2 block"
+          *ngIf="profile()?.roles?.length === 0"
+        >
+          Chưa có vai trò được gán
+        </small>
+      </div>
+    </form>
+
+    <div
+      class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6"
+    >
+      <div class="text-xs text-slate-500">
+        Thông tin họ tên, email, đơn vị được đồng bộ từ hệ thống tài khoản.
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          pButton
+          type="button"
+          label="Hủy"
+          class="p-button-text"
+          (click)="reset()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Lưu thay đổi"
+          (click)="save()"
+          class="p-button-success"
+        ></button>
+      </div>
+    </div>
+  </div>
+</div>

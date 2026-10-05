@@ -1,4 +1,12 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ViewChild,
+  computed,
+  signal,
+} from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { DutyApiService } from '../../../../core/api/duty-api.service';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -49,7 +57,6 @@ import { Subscription } from 'rxjs';
     ReactiveFormsModule,
     ToastModule,
     ConfirmDialogModule,
-    HasPermissionDirective,
     ScopePickerComponent,
     TooltipModule,
   ],
@@ -68,8 +75,85 @@ export class DutyLocationsComponent implements OnInit, OnDestroy {
   fg!: FormGroup;
 
   // scope state
-  scopes: ScopeRef[] = [];
-  activeScope: ScopeRef | null = null;
+  scopes = signal<ScopeRef[]>([]);
+  activeScope = signal<ScopeRef | null>(null);
+  permissionsLoaded = signal<boolean>(false);
+
+  // Permission checks for current scope
+  canCreate = computed(() => {
+    const scope = this.activeScope();
+    if (!scope) return false;
+    return this.scopeService.hasPermissionInScope(
+      'catalog.create',
+      scope.orgId
+    );
+  });
+
+  canEdit = computed(() => {
+    const scope = this.activeScope();
+    if (!scope) return false;
+    return this.scopeService.hasPermissionInScope('catalog.edit', scope.orgId);
+  });
+
+  canDelete = computed(() => {
+    const scope = this.activeScope();
+    if (!scope) return false;
+    return this.scopeService.hasPermissionInScope(
+      'catalog.delete',
+      scope.orgId
+    );
+  });
+
+  // Bulk action permissions - show buttons if user has permission in ANY loaded scope
+  canBulkDelete = computed(() => {
+    // Wait for permissions to load first
+    if (!this.permissionsLoaded()) return false;
+
+    const currentScopes = this.scopes();
+    const activeScope = this.activeScope();
+
+    // If scopes loaded but no active scope, check all scopes
+    if (currentScopes.length > 0 && !activeScope) {
+      return currentScopes.some((s) =>
+        this.scopeService.hasPermissionInScope('catalog.delete', s.orgId)
+      );
+    }
+
+    // If active scope selected, check that scope
+    if (activeScope) {
+      return this.scopeService.hasPermissionInScope(
+        'catalog.delete',
+        activeScope.orgId
+      );
+    }
+
+    return false;
+  });
+
+  canBulkEdit = computed(() => {
+    // Wait for permissions to load first
+    if (!this.permissionsLoaded()) return false;
+
+    const currentScopes = this.scopes();
+    const activeScope = this.activeScope();
+
+    // If scopes loaded but no active scope, check all scopes
+    if (currentScopes.length > 0 && !activeScope) {
+      return currentScopes.some((s) =>
+        this.scopeService.hasPermissionInScope('catalog.edit', s.orgId)
+      );
+    }
+
+    // If active scope selected, check that scope
+    if (activeScope) {
+      return this.scopeService.hasPermissionInScope(
+        'catalog.edit',
+        activeScope.orgId
+      );
+    }
+
+    return false;
+  });
 
   @ViewChild('dt') dt: Table | any;
   highlightedId: number | null = null; // highlight new row
@@ -86,10 +170,21 @@ export class DutyLocationsComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    this.scopeService.load('roster.view').subscribe({
+    this.scopeService.load('catalog.view').subscribe({
       next: async (items) => {
-        this.scopes = items;
-        if (!this.activeScope && items.length > 0) this.activeScope = items[0];
+        this.scopes.set(items);
+        if (!this.activeScope() && items.length > 0)
+          this.activeScope.set(items[0]);
+
+        // Load permission scopes and wait for all to complete
+        forkJoin([
+          this.scopeService.load('catalog.create'),
+          this.scopeService.load('catalog.edit'),
+          this.scopeService.load('catalog.delete'),
+        ]).subscribe(() => {
+          this.permissionsLoaded.set(true);
+        });
+
         await this.load();
       },
       error: () => this.load(),
@@ -142,7 +237,7 @@ export class DutyLocationsComponent implements OnInit, OnDestroy {
   async load() {
     this.loading = true;
     try {
-      const scopeCode = this.activeScope?.orgId ?? null;
+      const scopeCode = this.activeScope()?.orgId ?? null;
       this.rows =
         (await firstValueFrom(this.api.getDutyLocations(scopeCode, true))) ??
         [];
@@ -157,19 +252,19 @@ export class DutyLocationsComponent implements OnInit, OnDestroy {
   }
 
   onScopeSelected(scope: ScopeRef | null) {
-    this.activeScope = scope;
+    this.activeScope.set(scope);
     this.load();
   }
 
   scopeDisplayNameFor(code?: string | null): string {
     if (!code) return 'GLOBAL';
-    const s = this.scopes.find((x) => x.orgId === code);
+    const s = this.scopes().find((x) => x.orgId === code);
     return s?.displayName || code;
   }
 
   get dialogSelectedScope(): ScopeRef | null {
     const sc = this.fg?.get('scopeCode')?.value;
-    return this.scopes.find((s) => s.orgId === sc) ?? null;
+    return this.scopes().find((s) => s.orgId === sc) ?? null;
   }
 
   // --- Helpers for formatting/code generation (same logic as Shifts) ---
@@ -238,7 +333,7 @@ export class DutyLocationsComponent implements OnInit, OnDestroy {
   add() {
     this.editId = null;
     this.isAutoCode = true;
-    const scopeCode = this.activeScope?.orgId ?? null;
+    const scopeCode = this.activeScope()?.orgId ?? null;
     const max = this.rows
       .filter((r) => (r.scopeCode ?? null) === scopeCode)
       .reduce((acc, r) => Math.max(acc, r.displayOrder ?? 0), 0);

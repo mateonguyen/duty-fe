@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
+import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { AssignmentRead, DayKey, SimpleUser } from '../../schedule';
 
@@ -23,6 +24,7 @@ type CellExtra = string | string[] | Record<string, boolean> | null | undefined;
     ButtonModule,
     DragDropModule,
     OverlayPanelModule,
+    DialogModule,
     TooltipModule,
   ],
   templateUrl: './month-board.component.html',
@@ -30,7 +32,7 @@ type CellExtra = string | string[] | Record<string, boolean> | null | undefined;
 })
 export class MonthBoardComponent {
   // Max assignments to show per cell before showing "+X"
-  private readonly MAX_VISIBLE_ASSIGNMENTS = 4;
+  private readonly MAX_VISIBLE_ASSIGNMENTS = 2;
 
   // Chuyển thành signal để computed có thể track
   private _from = signal<string>('');
@@ -38,6 +40,8 @@ export class MonthBoardComponent {
 
   // Track selected assignment for popover
   selectedAssignment = signal<AssignmentRead | null>(null);
+  selectedDayKey = signal<string | null>(null);
+  dayDialogOpen = signal(false);
 
   @Input() set from(val: string) {
     this._from.set(val);
@@ -55,12 +59,15 @@ export class MonthBoardComponent {
 
   @Input() selectedShiftId: number | null = null;
   @Input() selectedLocationId: number | null = null;
+  @Input() selectedShiftName = '';
+  @Input() selectedLocationName = '';
   @Input() assignments: AssignmentRead[] = [];
   @Input() readOnly = false;
   @Input() selectedUser: SimpleUser | null = null;
 
   @Output() quickAdd = new EventEmitter<string>(); // dateKey
   @Output() remove = new EventEmitter<AssignmentRead>();
+  @Output() commanderChange = new EventEmitter<AssignmentRead>();
   @Output() staffDropped = new EventEmitter<{ user: any; date: string }>();
   onStaffDrop(event: CdkDragDrop<any>, d: any) {
     if (!d.inRange || this.readOnly) return;
@@ -177,10 +184,8 @@ export class MonthBoardComponent {
     const all = this.cellAssignments(dayKey);
     const visibleLeaders = this.visibleLeaders(dayKey);
     const visibleStaff = this.visibleStaff(dayKey);
-    const visibleIds = new Set(
-      [...visibleLeaders, ...visibleStaff].map((a) => a.id)
-    );
-    return all.filter((a) => !visibleIds.has(a.id));
+    const visible = new Set([...visibleLeaders, ...visibleStaff]);
+    return all.filter((a) => !visible.has(a));
   }
 
   // Format overflow tooltip
@@ -196,12 +201,10 @@ export class MonthBoardComponent {
       .join('\n');
   }
 
-  // Check if selected user has any assignment on this date (any shift)
+  // Highlight only when the selected person belongs to the visible shift and location.
   hasSelectedUserAssignment(dayKey: string): boolean {
     if (!this.selectedUser) return false;
-    return this.assignments.some(
-      (a) => a.date === dayKey && a.userId === this.selectedUser!.id
-    );
+    return this.cellAssignments(dayKey).some((a) => a.userId === this.selectedUser!.id);
   }
 
   isToday(d: Date) {
@@ -217,8 +220,23 @@ export class MonthBoardComponent {
    * Show assignment details in popover
    */
   showAssignmentDetails(event: Event, assignment: AssignmentRead, op: any) {
+    event.stopPropagation();
+    this.selectedDayKey.set(null);
     this.selectedAssignment.set(assignment);
-    op.toggle(event);
+    op.show(event);
+  }
+
+  showDayDetails(event: Event, dayKey: string) {
+    event.stopPropagation();
+    this.selectedAssignment.set(null);
+    this.selectedDayKey.set(dayKey);
+    this.dayDialogOpen.set(true);
+  }
+
+  onCellKeydown(event: Event, dayKey: string) {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    this.showDayDetails(event, dayKey);
   }
 
   // Tag tooltip content combining name, title, unit and shift (snapshot fields)

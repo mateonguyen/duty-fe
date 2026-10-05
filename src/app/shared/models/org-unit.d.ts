@@ -9,6 +9,8 @@ export interface SimpleUserWithOrgDto {
   id: number;
   username: string;
   displayName: string;
+  rankName?: string | null;
+  displayNameWithRank?: string | null;
   isLeader?: boolean;
   positionLevel?: number | null;
   positionName?: string;
@@ -19,6 +21,7 @@ export interface SimpleUserWithOrgDto {
 }
 
 export interface OrgUnitNodeWithStaffDto extends OrgUnitNodeDto {
+  shortName?: string | null;
   children: OrgUnitNodeWithStaffDto[];
   staff?: SimpleUserWithOrgDto[];
 }

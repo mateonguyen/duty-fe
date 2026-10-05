@@ -105,9 +105,13 @@ export class DutyApiService {
   getOrgTree() {
     return this.http.get<OrgUnitNodeDto[]>(`${this.base}/orgunits/tree`);
   }
-  getOrgTreeWithStaff() {
+  getOrgTreeWithStaff(rootOrgCode?: string, includeChildren: boolean = true) {
+    let params: any = {};
+    if (rootOrgCode) params.rootOrgCode = rootOrgCode;
+    params.includeChildren = includeChildren.toString();
     return this.http.get<OrgUnitNodeWithStaffDto[]>(
-      `${this.base}/orgunits/tree-with-staff`
+      `${this.base}/orgunits/tree-with-staff`,
+      { params }
     );
   }
 }

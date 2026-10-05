@@ -1,4 +1,30 @@
+.roster-list-page { background: var(--ui-canvas); color: var(--ui-text); font-family: var(--app-font-family); }
+.roster-page-header { width: min(1552px, calc(100% - 32px)); margin: 12px auto 10px; gap: 14px; padding: 0; border: 0; background: transparent; }
+.roster-title-scope { flex-wrap: wrap; gap: 12px; min-width: 0; }
+.roster-title-scope .ui-page-title { margin: 0; white-space: nowrap; }
+.roster-subtitle { font-size: 12px; color: var(--ui-text-muted); white-space: nowrap; }
+.roster-title-scope app-scope-picker { margin-left: 8px; }
+.roster-page-header .pi-calendar { color: var(--ui-primary); font-size: 17px; }
+.roster-list-content { width: min(1552px, calc(100% - 32px)); margin: 0 auto; padding: 0 0 16px; }
+.roster-search { flex: 1; min-width: 220px; max-width: 420px; }
+.roster-filter-controls { flex-wrap: wrap; }
+.roster-name-link { color: var(--ui-primary); text-decoration: none; }
+.roster-name-link:hover { text-decoration: underline; }
+.roster-empty-cell { padding: 32px 12px !important; text-align: center; }
+.roster-empty-state { display: grid; justify-items: center; gap: 7px; color: var(--ui-text-muted); }
+.roster-empty-state > .pi { font-size: 26px; color: #91aa9b; margin-bottom: 4px; }
+.roster-empty-state strong { color: var(--ui-text); font-size: 14px; }
+.roster-empty-state span { font-size: 12px; }
+.roster-empty-state .p-button { margin-top: 8px; font-size: 12px; }
+@media (max-width: 900px) { .roster-page-header, .roster-filters { flex-wrap: wrap; } .roster-title-scope { width: 100%; } .roster-search { max-width: none; width: 100%; } }
 ::ng-deep {
+  .roster-list-page .catalog-table { border: 1px solid var(--ui-border); border-radius: var(--ui-radius); overflow: hidden; background: var(--ui-surface); box-shadow: var(--ui-shadow); }
+  .roster-list-page .p-datatable-header { padding: 8px 10px; background: var(--ui-surface); border-color: var(--ui-border); }
+  .roster-list-page .p-datatable-thead > tr > th { padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--ui-text-muted); background: var(--ui-surface-soft); border-color: var(--ui-border); }
+  .roster-list-page .p-datatable-tbody > tr > td { padding: 9px 12px; font-size: 13px; border-color: var(--ui-border); }
+  .roster-list-page .p-paginator { padding: 8px 12px; border-color: var(--ui-border); background: var(--ui-surface); font-size: 12px; }
+  .roster-list-page .p-dropdown, .roster-list-page .p-inputtext { min-height: 39px; font-size: 13px; border-color: var(--ui-input-border); border-radius: var(--ui-control-radius); }
+  .roster-list-page .p-button { border-radius: var(--ui-control-radius); }
   .small-dropdown.p-dropdown {
     height: 2.5rem;
     font-size: 0.875rem;
